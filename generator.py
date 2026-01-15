@@ -53,7 +53,7 @@ class UniformGenerator:
                 if self.gen_tot >= self.maximal_generation:
                     break
                 length = self.generate_length()
-                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length, attention_rate=1, next_token_prob=self.next_token_prob, seed=self.seed)
+                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
                 new_req.generated_time = global_time
                 self.next_request_id += 1
 
@@ -120,7 +120,7 @@ class UniformRandomGenerator:
                 
                 
                 length = self.generate_length()
-                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length, attention_rate=1, next_token_prob=self.next_token_prob, seed=self.seed)
+                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
                 new_req.generated_time = global_time
                 self.next_request_id += 1
 
@@ -134,7 +134,7 @@ class UniformRandomGenerator:
                 if self.rng.random() > self.rate:
                     continue
                 length = self.generate_length()
-                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length, attention_rate=1, next_token_prob=self.next_token_prob, seed=self.seed)
+                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
                 new_req.generated_time = global_time
                 self.next_request_id += 1
 

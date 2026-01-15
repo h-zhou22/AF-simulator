@@ -1,0 +1,202 @@
+[
+  {
+    "rid": 18,
+    "startal_time": 0,
+    "completion_time": 4532,
+    "total_time": 4532,
+    "avg_time_per_round": 4532.0,
+    "rounds": 1,
+    "initial_length": 1757,
+    "final_length": 1758
+  },
+  {
+    "rid": 11,
+    "startal_time": 0,
+    "completion_time": 4532,
+    "total_time": 4532,
+    "avg_time_per_round": 4532.0,
+    "rounds": 1,
+    "initial_length": 483,
+    "final_length": 484
+  },
+  {
+    "rid": 4,
+    "startal_time": 0,
+    "completion_time": 8806,
+    "total_time": 8806,
+    "avg_time_per_round": 4403.0,
+    "rounds": 2,
+    "initial_length": 3923,
+    "final_length": 3925
+  },
+  {
+    "rid": 13,
+    "startal_time": 0,
+    "completion_time": 11002,
+    "total_time": 11002,
+    "avg_time_per_round": 3667.3333333333335,
+    "rounds": 3,
+    "initial_length": 2952,
+    "final_length": 2955
+  },
+  {
+    "rid": 15,
+    "startal_time": 0,
+    "completion_time": 21774,
+    "total_time": 21774,
+    "avg_time_per_round": 3629.0,
+    "rounds": 6,
+    "initial_length": 1415,
+    "final_length": 1421
+  },
+  {
+    "rid": 6,
+    "startal_time": 0,
+    "completion_time": 44208,
+    "total_time": 44208,
+    "avg_time_per_round": 3684.0,
+    "rounds": 12,
+    "initial_length": 739,
+    "final_length": 751
+  },
+  {
+    "rid": 16,
+    "startal_time": 0,
+    "completion_time": 47595,
+    "total_time": 47595,
+    "avg_time_per_round": 3966.25,
+    "rounds": 12,
+    "initial_length": 870,
+    "final_length": 882
+  },
+  {
+    "rid": 12,
+    "startal_time": 0,
+    "completion_time": 57499,
+    "total_time": 57499,
+    "avg_time_per_round": 3593.6875,
+    "rounds": 16,
+    "initial_length": 1819,
+    "final_length": 1835
+  },
+  {
+    "rid": 7,
+    "startal_time": 0,
+    "completion_time": 59270,
+    "total_time": 59270,
+    "avg_time_per_round": 3486.470588235294,
+    "rounds": 17,
+    "initial_length": 545,
+    "final_length": 562
+  },
+  {
+    "rid": 17,
+    "startal_time": 0,
+    "completion_time": 65401,
+    "total_time": 65401,
+    "avg_time_per_round": 3442.157894736842,
+    "rounds": 19,
+    "initial_length": 2145,
+    "final_length": 2164
+  },
+  {
+    "rid": 3,
+    "startal_time": 0,
+    "completion_time": 71101,
+    "total_time": 71101,
+    "avg_time_per_round": 3385.7619047619046,
+    "rounds": 21,
+    "initial_length": 3245,
+    "final_length": 3266
+  },
+  {
+    "rid": 19,
+    "startal_time": 0,
+    "completion_time": 81207,
+    "total_time": 81207,
+    "avg_time_per_round": 3248.28,
+    "rounds": 25,
+    "initial_length": 211,
+    "final_length": 236
+  },
+  {
+    "rid": 8,
+    "startal_time": 0,
+    "completion_time": 91236,
+    "total_time": 91236,
+    "avg_time_per_round": 3146.0689655172414,
+    "rounds": 29,
+    "initial_length": 163,
+    "final_length": 192
+  },
+  {
+    "rid": 14,
+    "startal_time": 0,
+    "completion_time": 92595,
+    "total_time": 92595,
+    "avg_time_per_round": 3306.964285714286,
+    "rounds": 28,
+    "initial_length": 2267,
+    "final_length": 2295
+  },
+  {
+    "rid": 1,
+    "startal_time": 0,
+    "completion_time": 98249,
+    "total_time": 98249,
+    "avg_time_per_round": 3169.3225806451615,
+    "rounds": 31,
+    "initial_length": 2485,
+    "final_length": 2516
+  },
+  {
+    "rid": 10,
+    "startal_time": 0,
+    "completion_time": 100256,
+    "total_time": 100256,
+    "avg_time_per_round": 3457.103448275862,
+    "rounds": 29,
+    "initial_length": 2371,
+    "final_length": 2400
+  },
+  {
+    "rid": 2,
+    "startal_time": 0,
+    "completion_time": 104931,
+    "total_time": 104931,
+    "avg_time_per_round": 3179.7272727272725,
+    "rounds": 33,
+    "initial_length": 846,
+    "final_length": 879
+  },
+  {
+    "rid": 9,
+    "startal_time": 0,
+    "completion_time": 116725,
+    "total_time": 116725,
+    "avg_time_per_round": 2992.948717948718,
+    "rounds": 39,
+    "initial_length": 3290,
+    "final_length": 3329
+  },
+  {
+    "rid": 0,
+    "startal_time": 0,
+    "completion_time": 137040,
+    "total_time": 137040,
+    "avg_time_per_round": 2491.6363636363635,
+    "rounds": 55,
+    "initial_length": 1934,
+    "final_length": 1989
+  },
+  {
+    "rid": 5,
+    "startal_time": 0,
+    "completion_time": 148101,
+    "total_time": 148101,
+    "avg_time_per_round": 2314.078125,
+    "rounds": 64,
+    "initial_length": 1270,
+    "final_length": 1334
+  }
+]

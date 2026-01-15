@@ -32,8 +32,9 @@ class Server:
             #         self.current_busy = True
             if batch.status == 3:
                 if current_time >= batch.current_ending:
-                    batch.do_new_round(current_time, stats)  # stats is None for now
                     batch.F2A_transmission_end(current_time)
+                    batch.do_new_round(current_time, stats)  # stats is None for now
+                    
             elif batch.status == 4: # Waiting for allocation in FFN
                 if current_time >= batch.current_ending:
                     batch.A2F_transmission_end(current_time)
@@ -60,7 +61,7 @@ class Server:
                     continue
                 batch.attention_now = False
                 if self.current_busy == False:
-                    batch.Attention_processing(current_time)
+                    batch.Attention_processing(current_time, alpha_A, beta_A)
                     self.current_busy = True
                 else:
                     batch.status = 5

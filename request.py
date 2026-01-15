@@ -2,8 +2,8 @@ import random
 #from stats import StatsCollector
 
 class Request:
-    def __init__(self, req_id, arrival_time, length, max_possible_length, next_token_prob, seed=42):
-        self.req_id = req_id
+    def __init__(self, rid, arrival_time, length, max_possible_length, next_token_prob, seed=42):
+        self.rid = rid
         self.arrival = arrival_time
         self.max_possible_length = max_possible_length
         self.next_token_prob = next_token_prob
@@ -18,7 +18,7 @@ class Request:
         self.completion_time = None  # time when request is completed
         self.finished = False  # whether the request is finished
 
-        self.rng = random.Random(seed + req_id)  # random generator for this request
+        self.rng = random.Random(seed + rid)  # random generator for this request
         self.batch_id = None  # batch id the request is assigned to
         # Statistics
         self.cyc_used = 0  # total cycles used
