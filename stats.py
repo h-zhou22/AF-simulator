@@ -101,7 +101,7 @@ class StatsCollector:
     def record_batch(self, batch: Batch):
         rounds = 0
         tot_cost = 0
-        if batch.round_cost:
+        if len(batch.round_cost)>0:
             for round_cost in batch.round_cost:
                 rounds += 1
                 tot_cost += round_cost
@@ -140,7 +140,7 @@ class StatsCollector:
         }
 
         for r in self.records:
-            arrival = r["arrival_time"]
+            arrival = r["startal_time"]
             completion = r["completion_time"]
             rounds = r["rounds"]
             init_len = r["initial_length"]
@@ -190,7 +190,7 @@ class StatsCollector:
 
         return {
             "finished_requests": self.finished_request,
-            "vip_requests": len(buckets["vip"]),
+            #"vip_requests": len(buckets["vip"]),
             "avg_total_time": avg_total_time,
             "avg_time_per_cycle_per_request": avg_cycle_time,
             "avg_total_time_by_initial_length": bucket_avg_time,

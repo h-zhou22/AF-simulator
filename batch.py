@@ -36,8 +36,12 @@ class Batch:
 
     def load_request(self, current_time, request:Request):
         self.requests.append(request)
+        request.start_processing(current_time, self.bids)
         self.length += request.length
         self.num_req += 1
+        if self.status == 0:
+            self.status = 1
+            self.attention_now = True
         
 
     def finish_request(self, current_time, request:Request)-> bool:
@@ -46,10 +50,11 @@ class Batch:
             #return False
         self.ever_served_request += 1
         self.requests.remove(request)
-        self.length -= request.length
+        self.length -= (request.length-1)
         self.num_req -= 1
         if self.num_req == 0:
             self.status = 0
+            #raise ValueError("Ever reached here")
         return True
         
     def Attention_processing(self, current_time, alpha_A, beta_A):
