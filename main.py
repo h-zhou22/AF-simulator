@@ -14,6 +14,20 @@ def parse_args():
 
     parser.add_argument("--generator", type=int, default=1,
                         help="0 uniform generator, 1 random-uniform generator, 2 geometry generator, 3 poisson generator")
+    
+    parser.add_argument("--request_mode", type=str, default="default",
+                        choices=["default", "identical", "geometric_output", "geometric_input_output"],
+                        help="Request generation mode: default=original behavior, identical=fixed input/output, geometric_output=identical input + geometric output, geometric_input_output=geometric input + geometric output")
+    
+    parser.add_argument("--LI", type=int, default=100,
+                        help="Input length for identical mode (LI)")
+    parser.add_argument("--LO", type=int, default=50,
+                        help="Output length for identical mode (LO)")
+    
+    parser.add_argument("--p", type=float, default=0.5,
+                        help="Probability for geometric distribution (output in geometric_output mode, output in geometric_input_output mode)")
+    parser.add_argument("--q", type=float, default=0.5,
+                        help="Probability for geometric distribution (input in geometric_input_output mode)")
     parser.add_argument("--num_server", type=int, default=1,
                         help="number of servers to create")
     
@@ -89,6 +103,14 @@ def main():
         servers.append(server)
 
     generator_seed = 4
+    
+    # 根据request_mode设置generator的参数
+    request_mode = args.request_mode
+    LI = args.LI
+    LO = args.LO
+    p = args.p
+    q = args.q
+    
     if args.generator == 0:
         generator = UniformGenerator(
             #arranger=arranger,
@@ -109,7 +131,22 @@ def main():
             num_per_cyc= args.gen_req_per_cyc,
             maximal_generation = args.maximal_generation,
             basic_length=args.basic_num
-        ) 
+        )
+    
+    # 设置request_mode相关参数到generator
+    generator.request_mode = request_mode
+    if request_mode == "identical":
+        generator.LI = LI
+        generator.LO = LO
+        # 对于identical模式，所有request的输入长度都是LI
+        generator.fixed_input_length = LI
+    elif request_mode == "geometric_output":
+        generator.p = p
+        # 对于geometric_output模式，输入是identical的，使用LI作为输入长度
+        generator.fixed_input_length = LI
+    elif request_mode == "geometric_input_output":
+        generator.p = p
+        generator.q = q 
 
     FFN_workers: List[FFN] = []
     num_FFN = args.num_FFN
@@ -170,11 +207,17 @@ def main():
             if test_print:
                 print("Server ID: ",server.server_id)
                 
-            server.attention_work(global_time, alpha_A, beta_A)
+            server.attention_work(global_time, alpha_A, beta_A, sample_interval=5)
 
-        FFN_server.cycle_work(global_time, alpha_F, beta_F)
+        FFN_server.cycle_work(global_time, alpha_F, beta_F, sample_interval=5)
 
         finished_requests = stats.finished_request
+        
+        # 记录 batch1 每个 cycle 的 status
+        if len(stored_batches) > 1:
+            batch1 = stored_batches[1]
+            batch1.status_history.append((global_time, batch1.status))
+        
         global_time += 1
 
         if test_print:
@@ -202,6 +245,14 @@ def main():
     stats.dump_records_to_json()
     stats.dump_summary_to_json()
     stats.dump_batch_info_to_json()
+    print("\n=== GENERATING TIMELINE PLOTS ===")
+    stats.plot_all_timelines()
+    # 绘制合并的时间轴图
+    if len(stats.batch_info) >= 2:
+        stats.plot_merged_timeline()
+    # 绘制batch1的status历史图
+    if len(stored_batches) > 1:
+        stats.plot_status_history(batch_id=1)
     print("All finished")
 
 if __name__ == "__main__":

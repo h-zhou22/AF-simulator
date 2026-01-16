@@ -29,13 +29,38 @@ class UniformGenerator:
         self.global_time = 0
         self.gen_tot = 0
         self.maximal_generation = maximal_generation
-        
+        # 初始化request_mode相关属性
+        self.request_mode = "default"
+        self.LI = None
+        self.LO = None
+        self.p = None
+        self.q = None
+        self.fixed_input_length = None
 
     def generate_length(self):
         """
-        生成一个均匀分布的 request 长度
+        生成一个 request 长度
+        根据request_mode决定生成方式
         """
-        return self.rng.randint(1, self.max_length)
+        request_mode = getattr(self, 'request_mode', 'default')
+        
+        if request_mode == "identical":
+            # identical模式：所有request的输入长度都是LI
+            return getattr(self, 'fixed_input_length', self.rng.randint(1, self.max_length))
+        elif request_mode == "geometric_output":
+            # geometric_output模式：输入是identical的，使用LI
+            return getattr(self, 'fixed_input_length', self.rng.randint(1, self.max_length))
+        elif request_mode == "geometric_input_output":
+            # geometric_input_output模式：输入服从Geo(q)
+            # 生成几何分布的输入长度
+            q = getattr(self, 'q', 0.5)
+            length = 0
+            while self.rng.random() < q and length < self.max_length:
+                length += 1
+            return max(1, length)  # 至少为1
+        else:
+            # default模式：均匀分布
+            return self.rng.randint(1, self.max_length)
 
     def step(self, global_time):
         """
@@ -53,7 +78,12 @@ class UniformGenerator:
                 if self.gen_tot >= self.maximal_generation:
                     break
                 length = self.generate_length()
-                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
+                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed,
+                                 request_mode=getattr(self, 'request_mode', 'default'),
+                                 LI=getattr(self, 'LI', None),
+                                 LO=getattr(self, 'LO', None),
+                                 p=getattr(self, 'p', None),
+                                 q=getattr(self, 'q', None))
                 new_req.generated_time = global_time
                 self.next_request_id += 1
 
@@ -97,12 +127,38 @@ class UniformRandomGenerator:
         self.basic_length = basic_length
         
         assert self.basic_length <= self.maximal_generation
+        # 初始化request_mode相关属性
+        self.request_mode = "default"
+        self.LI = None
+        self.LO = None
+        self.p = None
+        self.q = None
+        self.fixed_input_length = None
 
     def generate_length(self):
         """
-        生成一个均匀分布的 request 长度
+        生成一个 request 长度
+        根据request_mode决定生成方式
         """
-        return self.rng.randint(1, self.max_length)
+        request_mode = getattr(self, 'request_mode', 'default')
+        
+        if request_mode == "identical":
+            # identical模式：所有request的输入长度都是LI
+            return getattr(self, 'fixed_input_length', self.rng.randint(1, self.max_length))
+        elif request_mode == "geometric_output":
+            # geometric_output模式：输入是identical的，使用LI
+            return getattr(self, 'fixed_input_length', self.rng.randint(1, self.max_length))
+        elif request_mode == "geometric_input_output":
+            # geometric_input_output模式：输入服从Geo(q)
+            # 生成几何分布的输入长度
+            q = getattr(self, 'q', 0.5)
+            length = 0
+            while self.rng.random() < q and length < self.max_length:
+                length += 1
+            return max(1, length)  # 至少为1
+        else:
+            # default模式：均匀分布
+            return self.rng.randint(1, self.max_length)
 
     def step(self, global_time):
         """
@@ -120,7 +176,12 @@ class UniformRandomGenerator:
                 
                 
                 length = self.generate_length()
-                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
+                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed,
+                                 request_mode=getattr(self, 'request_mode', 'default'),
+                                 LI=getattr(self, 'LI', None),
+                                 LO=getattr(self, 'LO', None),
+                                 p=getattr(self, 'p', None),
+                                 q=getattr(self, 'q', None))
                 new_req.generated_time = global_time
                 self.next_request_id += 1
 
@@ -134,7 +195,12 @@ class UniformRandomGenerator:
                 if self.rng.random() > self.rate:
                     continue
                 length = self.generate_length()
-                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
+                new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed,
+                                 request_mode=getattr(self, 'request_mode', 'default'),
+                                 LI=getattr(self, 'LI', None),
+                                 LO=getattr(self, 'LO', None),
+                                 p=getattr(self, 'p', None),
+                                 q=getattr(self, 'q', None))
                 new_req.generated_time = global_time
                 self.next_request_id += 1
 
