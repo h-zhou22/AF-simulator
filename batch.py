@@ -68,7 +68,7 @@ class Batch:
     def FFN_processing(self, current_time, alpha_F, beta_F) -> int:
         # t_F(T)=alpha_F*T+beta_F
         self.status = 2
-        current_ending = current_time + alpha_F*self.length + beta_F
+        current_ending = current_time + alpha_F*self.num_req + beta_F
         self.current_ending = math.ceil(current_ending)
 
         self.Fcost.append(self.current_ending-current_time)
@@ -78,7 +78,7 @@ class Batch:
     def A2F_transmission(self, current_time, alpha_T, beta_T):
         # t_T(T)=alpha_T*T+beta_T
         self.status = 3
-        current_ending = current_time + alpha_T*self.length + beta_T
+        current_ending = current_time + alpha_T*self.num_req + beta_T
         self.current_ending = math.ceil(current_ending)
         
         self.A_finish.append(current_time) 
@@ -86,7 +86,7 @@ class Batch:
     def F2A_transmission(self, current_time, alpha_T, beta_T):
         # t_T(T)=alpha_T*T+beta_T
         self.status = 4
-        current_ending = current_time + alpha_T*self.length + beta_T
+        current_ending = current_time + alpha_T*self.num_req + beta_T
         self.current_ending = math.ceil(current_ending)
 
         self.F_finish.append(current_time)
