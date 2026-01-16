@@ -21,7 +21,7 @@ class Server:
                 if batch.use_length_limit:
                     if batch.length > batch.length_limit:
                         continue
-            available_batches.append((batch.num_req, batch.length, batch_id, self.server_id))
+                available_batches.append((batch.num_req, batch.length, batch_id, self.server_id))
         return available_batches
     
     def cycle_work(self, current_time, stats, FFN_worker, alpha_T, beta_T):
