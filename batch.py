@@ -4,8 +4,8 @@ from request import Request
 from typing import List, Dict, Tuple
 
 class Batch:
-    def __init__(self, bids, batch_size,  use_length_limit=False, length_limit=0):
-        self.bids = bids  # List of request IDs in the batch
+    def __init__(self, batch_id, batch_size, FFN_unit_time,  use_length_limit=False, length_limit=0):
+        self.batch_id = batch_id  # List of request IDs in the batch
         self.requests :List[Request] = []  # Requests in the batch
         self.batch_size = batch_size # Maximal number of requests allowed
         self.length = 0
@@ -13,6 +13,9 @@ class Batch:
         self.use_length_limit = use_length_limit
         self.length_limit = length_limit
         self.ever_served_request = 0
+
+        self.other_batch_FFN_unit_cost = 0
+        self.FFN_unit_cost = FFN_unit_time
 
         self.status = 0
         # 0: Empty
@@ -33,10 +36,11 @@ class Batch:
         self.Acost:list[int] = []
         self.Fcost:list[int] = []
         
+        self.num_F_unittime = 0
 
     def load_request(self, current_time, request:Request):
         self.requests.append(request)
-        request.start_processing(current_time, self.bids)
+        request.start_processing(current_time, self.batch_id)
         self.length += request.length
         self.num_req += 1
         if self.status == 0:
@@ -122,6 +126,14 @@ class Batch:
             if self.length >= self.length_limit:
                 return False
         return True
+
+    def compute_num_F_unit_time(self, alpha_A, beta_A)-> float:
+        attention_cost = alpha_A*self.length + beta_A
+        self.num_F_unittime = attention_cost / self.FFN_unit_cost
+        return self.num_F_unittime
+
+    def update_other_batch_FFN_unit_cost(self, num_F_unit_time):
+        self.other_batch_FFN_unit_cost = num_F_unit_time
 
     def collect_makespan(self, current_time):
         # TODO
