@@ -16,6 +16,8 @@ def parse_args():
                         help="0 uniform generator, 1 random-uniform generator, 2 geometry generator, 3 poisson generator")
     parser.add_argument("--num_server", type=int, default=1,
                         help="number of servers to create")
+    parser.add_argument("--FFN_type", type = int, default=0,
+                        help="0: single FFN worker, 1: FFN server maintaining a given order, 2: MoE")
     
     parser.add_argument("--num_batch", type=int, default=2,
                         help="number of batches inside each server")
@@ -68,6 +70,15 @@ def parse_args():
 def main():
     args = parse_args()
     stats = StatsCollector(args.out_prefix)
+
+    alpha_A = args.alpha_A
+    alpha_F = args.alpha_F
+    alpha_T = args.alpha_T
+    beta_A = args.beta_A
+    beta_F = args.beta_F
+    beta_T = args.beta_T
+
+    unit_FFN_time = alpha_F * batch_size + beta_F
     
     num_servers = args.num_server
     servers = []
@@ -81,7 +92,7 @@ def main():
     for idx in range(num_servers):
         batches: Dict[int, Batch] = {}
         for i in range(num_batch):
-            new_batch = Batch(batch_id, batch_size, use_length_limit, args.batch_max_length)
+            new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
             batches[batch_id] =  new_batch
             stored_batches[batch_id] = new_batch
             batch_id += 1
@@ -111,6 +122,7 @@ def main():
             basic_length=args.basic_num
         ) 
 
+    # 这里在修改FFN逻辑之后需要修改
     FFN_workers: List[FFN] = []
     num_FFN = args.num_FFN
     for FFN_id in range(num_FFN):
@@ -121,12 +133,7 @@ def main():
     finished_requests = 0
     test_print = False
 
-    alpha_A = args.alpha_A
-    alpha_F = args.alpha_F
-    alpha_T = args.alpha_T
-    beta_A = args.beta_A
-    beta_F = args.beta_F
-    beta_T = args.beta_T
+   
 
     buffer = deque()
     req_inq = 0

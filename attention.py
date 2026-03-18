@@ -65,3 +65,15 @@ class Server:
                     self.current_busy = True
                 else:
                     batch.status = 5
+
+    def compute_other_batch_cost(self, batch_id, alpha_A, beta_A):
+    # 用于近似计算同组其他Batch的Attention用时, 用于FFN阶段的allocation参考
+    # 每轮计算开始时均需更新. 运输时间可以省略
+        batch = self.batches[batch_id]
+        tot_len = 0
+        for batch_id in self.batches:
+            if batch_id == batch_id:
+                continue
+            other_batch = self.batches[batch_id]
+            tot_len += other_batch.length
+        batch.other_batch_cost = alpha_A*tot_len + beta_A
