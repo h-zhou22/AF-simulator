@@ -1,15 +1,20 @@
 import random
+import math
 from request import Request
 from batch import Batch
 from typing import List, Dict, Tuple
 
 class Server:
-    def __init__(self, server_id, num_batches, batches: dict[int,Batch]):
+    def __init__(self, server_id, num_batches, batch_size, unit_FFN_time, batches: dict[int,Batch]):
         self.num_batches = num_batches
         self.batches = batches
+        self.batch_size = batch_size
         assert len(batches) == num_batches
         self.server_id = server_id
+        self.unit_FFN_time = unit_FFN_time
         self.current_busy = False
+
+        #self.ceiling = True
 
     def load_request_to_batch(self, current_time, batch_id, request:Request):
         self.batches[batch_id].load_request(current_time, request)
@@ -31,10 +36,10 @@ class Server:
             #         batch.Attention_processing(current_time, alpha_F, beta_F)
             #         self.current_busy = True
             if batch.status == 3:
+                # 传输时间无需取整
                 if current_time >= batch.current_ending:
                     batch.F2A_transmission_end(current_time)
                     batch.do_new_round(current_time, stats)  # stats is None for now
-                    
             elif batch.status == 4: # Waiting for allocation in FFN
                 if current_time >= batch.current_ending:
                     batch.A2F_transmission_end(current_time)
@@ -77,3 +82,16 @@ class Server:
             other_batch = self.batches[batch_id]
             tot_len += other_batch.length
         batch.other_batch_cost = alpha_A*tot_len + beta_A
+
+    def compute_total_cost(self, alpha_A, beta_A):
+        # return the total cost of all batches in the current server
+        tot_len = 0
+        for batch_id in self.batches:
+            batch = self.batches[batch_id]
+            tot_len += batch.length
+        return alpha_A*tot_len + beta_A
+
+    def compute_total_unit_cost(self,alpha_A, beta_A):
+        total_cost = self.compute_total_cost(alpha_A, beta_A)
+        total_unit = total_cost / (self.unit_FFN_time*self.num_batches)
+        return total_unit

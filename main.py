@@ -7,6 +7,7 @@ from stats import StatsCollector
 from request import Request
 from FFN import FFN
 from batch import Batch
+from scheduler import BasicScheduler, DynamicScheduler
 from collections import deque
 
 def parse_args():
@@ -17,7 +18,7 @@ def parse_args():
     parser.add_argument("--num_server", type=int, default=1,
                         help="number of servers to create")
     parser.add_argument("--FFN_type", type = int, default=0,
-                        help="0: single FFN worker, 1: FFN server maintaining a given order, 2: MoE")
+                        help="0: single FFN worker, 1: FFN server maintaining a given order, 2: MoE, 3: Baseline, 4: FFN with dynamic batching between Batches and FFN")
     
     parser.add_argument("--num_batch", type=int, default=2,
                         help="number of batches inside each server")
@@ -96,7 +97,7 @@ def main():
             batches[batch_id] =  new_batch
             stored_batches[batch_id] = new_batch
             batch_id += 1
-        server = Server(idx, args.num_batch, batches)
+        server = Server(idx, args.num_batch, batch_size, unit_FFN_time, batches)
         servers.append(server)
 
     generator_seed = 4
@@ -138,66 +139,79 @@ def main():
     buffer = deque()
     req_inq = 0
 
+
+    if args.FFN_type == 0:
     # Use single FFN worker for current experiment
-    FFN_server = FFN_workers[0]
-    # TODO: Main Loop
-    while finished_requests < args.total_request:
-        newly_generated_reqs = generator.step(global_time)
-        for req in newly_generated_reqs:
-            buffer.append(req)
-            req_inq += 1
-        for server in servers:
-            server.cycle_work(global_time, stats, FFN_server, alpha_T, beta_T)
+        FFN_server = FFN_workers[0]
+        # TODO: Main Loop
+        while finished_requests < args.total_request:
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                buffer.append(req)
+                req_inq += 1
+            for server in servers:
+                server.cycle_work(global_time, stats, FFN_server, alpha_T, beta_T)
 
-        available_batches : List[Tuple[int, int, int, int]] = []
-        for server in servers:
-            extend_batches = server.find_available_batch()
-            available_batches.extend(extend_batches)
+            available_batches : List[Tuple[int, int, int, int]] = []
+            for server in servers:
+                extend_batches = server.find_available_batch()
+                available_batches.extend(extend_batches)
 
-        while available_batches and buffer:
-            #print("Here 154")
+            while available_batches and buffer:
+                #print("Here 154")
+                if test_print:
+                    for batch1 in available_batches:
+                        print("Batch info ",batch1)
+                    print("Buufer size: ",len(buffer))
+                request = buffer.pop()
+                best_batch_info = min(available_batches)
+                batch_id0 = best_batch_info[2]
+                server_id0 = best_batch_info[3]
+                best_batch = stored_batches[batch_id0]
+                target_server = servers[server_id0]
+                target_server.load_request_to_batch(global_time, best_batch_info[2], request)
+                available_batches.remove(best_batch_info)
+                if best_batch.has_free_slot(global_time):
+                    info0, info1 = best_batch.update_info(current_time=global_time)
+                    new_info = (info0, info1, batch_id0, server_id0)
+                    available_batches.append(new_info)
+
+            for server in servers:
+                if test_print:
+                    print("Server ID: ",server.server_id)
+                    
+                server.attention_work(global_time, alpha_A, beta_A)
+
+            FFN_server.cycle_work(global_time, alpha_F, beta_F)
+
+            finished_requests = stats.finished_request
+            global_time += 1
+
             if test_print:
-                for batch1 in available_batches:
-                    print("Batch info ",batch1)
-                print("Buufer size: ",len(buffer))
-            request = buffer.pop()
-            best_batch_info = min(available_batches)
-            batch_id0 = best_batch_info[2]
-            server_id0 = best_batch_info[3]
-            best_batch = stored_batches[batch_id0]
-            target_server = servers[server_id0]
-            target_server.load_request_to_batch(global_time, best_batch_info[2], request)
-            available_batches.remove(best_batch_info)
-            if best_batch.has_free_slot(global_time):
-                info0, info1 = best_batch.update_info(current_time=global_time)
-                new_info = (info0, info1, batch_id0, server_id0)
-                available_batches.append(new_info)
-
-        for server in servers:
-            if test_print:
-                print("Server ID: ",server.server_id)
+                print("Global Time: ", global_time)
+                print("Finished requests: ", finished_requests)
+                print("Total requests: ", len(buffer))
+                print("Generated req: ", req_inq)
+                print("Batch count: ",len(stored_batches))
                 
-            server.attention_work(global_time, alpha_A, beta_A)
-
-        FFN_server.cycle_work(global_time, alpha_F, beta_F)
-
-        finished_requests = stats.finished_request
-        global_time += 1
-
-        if test_print:
-            print("Global Time: ", global_time)
-            print("Finished requests: ", finished_requests)
-            print("Total requests: ", len(buffer))
-            print("Generated req: ", req_inq)
-            print("Batch count: ",len(stored_batches))
-            
-            for j in range(num_batch):
-                print("BID: ",j)
-                batch_info = stored_batches[j].update_info(global_time)
-                print("Batch ino: ",batch_info)
-                print("Batch status: ",stored_batches[j].status)
-                print("Batch current ending: ", stored_batches[j].current_ending)
-    
+                for j in range(num_batch):
+                    print("BID: ",j)
+                    batch_info = stored_batches[j].update_info(global_time)
+                    print("Batch ino: ",batch_info)
+                    print("Batch status: ",stored_batches[j].status)
+                    print("Batch current ending: ", stored_batches[j].current_ending)
+    # Loop End For Single FFN cases
+    elif args.FFN_type == 3:  
+        scheduler = BasicScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F)
+        scheduler.match_AF()
+        while finished_requests < args.total_request:
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                buffer.append(req)
+                req_inq += 1
+            scheduler.do_cycle_work(global_time)
+            finished_requests = stats.finished_request
+            global_time += 1
 
     for batch_id in range(len(stored_batches)):
         stats.record_batch(stored_batches[batch_id])

@@ -13,18 +13,24 @@ class FFN:
         self.buffer = deque()
         # 当前队列长度
         self.current_queue_length = 0
+
+        self.ceiling = True
     
     def load_batch(self, current_time, batch:Batch):
         self.buffer.append(batch)
         
     def cycle_work(self, current_time, alpha_F, beta_F):
         if self.current_busy:
-            if current_time < self.current_ending:
-                return
+            if self.ceiling:
+                if current_time < self.current_ending:
+                    return
+            else:
+                if current_time < self.current_ending:
+                    return
             self.current_busy = False
         if self.buffer:
             batch = self.buffer.pop()
-            self.current_ending = batch.FFN_processing(current_time, alpha_F, beta_F)
+            self.current_ending = batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
             self.current_busy = True
 
 class BatchNode:
@@ -208,6 +214,7 @@ class BatchList:
             self.tail = self.current
 
 class dynamic_FFN:
+# 可以改变流水线顺序的FFN worker, 可以寻找下一个准备就绪的Batch而非严格按照顺序执行
     def __init__(self, worker_id, should_serve_num_batches, allow_exchange=False):
         self.worker_id = worker_id
         self.current_busy = False
@@ -219,13 +226,22 @@ class dynamic_FFN:
         self.buffer = BatchList()
         self.served_num_batches = 0
         self.should_serve_batches = should_serve_num_batches
+
+        self.ceiling = True
     
     def construct_pipeline(self, current_time, batch:Batch):
     # 向流水线中添加一个Batch
+        if batch.matched_FFN_id != -1:
+            raise ValueError(f"Batch {batch.batch_id} has already been matched to FFN {batch.matched_FFN_id}, cannot add to FFN {self.worker_id}")
+        batch.matched_FFN_id = self.worker_id
         self.buffer.add_batch(batch)
         self.served_num_batches += 1
 
     def modify_pipeline(self, current_time, batch_id):
+        removed_node = self.buffer.map.get(batch_id)
+        removed_batch = removed_node.batch
+        removed_batch.matched_FFN_id = -1
+
         self.buffer.remove_batch(batch_id)
         self.served_num_batches -= 1
 
@@ -249,14 +265,14 @@ class dynamic_FFN:
                     return
                 else:
                     self.current_busy = True
-                    self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F)
+                    self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
                     # 在开始处理时就更改Buffer的状态
                     self.buffer.finish_current_work()
             else:
             # 寻找到下一个就绪的Node并在流水线上与当前节点交换
                 if self.buffer.current.load_ready:
                     self.current_busy = True
-                    self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F)
+                    self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
                     # 在开始处理时就更改Buffer的状态
                     self.buffer.finish_current_work()
                 else:
@@ -272,10 +288,7 @@ class dynamic_FFN:
                         next_node = next_node.next
                     if find_ready:
                         self.current_busy = True
-                        self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F)
+                        self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
                         # 在开始处理时就更改Buffer的状态
                         self.buffer.finish_current_work()
-            # batch = self.buffer.pop()
-            # self.current_ending = batch.FFN_processing(current_time, alpha_F, beta_F)
-            # self.current_busy = True
-
+           

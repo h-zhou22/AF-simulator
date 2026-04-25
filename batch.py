@@ -17,6 +17,8 @@ class Batch:
         self.other_batch_FFN_unit_cost = 0
         self.FFN_unit_cost = FFN_unit_time
 
+        self.matched_FFN_id = -1
+
         self.status = 0
         # 0: Empty
         # 1: Attention processing, 2: FFN processing
@@ -38,11 +40,23 @@ class Batch:
         
         self.num_F_unittime = 0
 
-    def load_request(self, current_time, request:Request):
+        self.ceiling = True
+        # 用时是否需要上取整,注意代码各处应保持相同
+        # 在取整的情况下, current_ending总是整数
+
+    def append_request(self, current_time,  request:Request):
         self.requests.append(request)
         request.start_processing(current_time, self.batch_id)
         self.length += request.length
         self.num_req += 1
+
+    def start_processing_from_empty(self, current_time):
+        if self.status == 0:
+            self.status = 1
+            self.attention_now = True
+
+    def load_request(self, current_time, request:Request):
+        self.append_request(current_time, request)
         if self.status == 0:
             self.status = 1
             self.attention_now = True
@@ -65,17 +79,30 @@ class Batch:
         # t_A(T)=alpha_A*T+beta_A
         self.status = 1
         current_ending = current_time + alpha_A*self.length + beta_A
-        self.current_ending = math.ceil(current_ending)
+        if self.ceiling:
+            self.current_ending = math.ceil(current_ending)
+        else:
+            self.current_ending = current_ending
 
         self.Acost.append(self.current_ending - current_time)
 
-    def FFN_processing(self, current_time, alpha_F, beta_F) -> int:
+    def FFN_processing(self, current_time, alpha_F, beta_F, current_ending):
         # t_F(T)=alpha_F*T+beta_F
+        # 在ceiling的情况下总是整数
         self.status = 2
-        current_ending = current_time + alpha_F*self.num_req + beta_F
-        self.current_ending = math.ceil(current_ending)
+        current_cost = alpha_F*self.num_req + beta_F
+        
+        if self.ceiling:
+        # 此时开始时间需要取整,总用时对应亦取整
+            current_ending = current_time + current_cost
+            self.current_ending = math.ceil(current_ending)
+            current_cost = self.current_ending - current_time
+        else:
+        # 此时开始时间可以是float
+            current_ending = current_ending + current_cost
+            self.current_ending = current_ending
 
-        self.Fcost.append(self.current_ending-current_time)
+        self.Fcost.append(current_cost)
 
         return self.current_ending
 
@@ -83,7 +110,10 @@ class Batch:
         # t_T(T)=alpha_T*T+beta_T
         self.status = 3
         current_ending = current_time + alpha_T*self.num_req + beta_T
-        self.current_ending = math.ceil(current_ending)
+        if self.ceiling:
+            self.current_ending = math.ceil(current_ending)
+        else:
+            self.current_ending = current_ending
         
         self.A_finish.append(current_time) 
 
@@ -91,7 +121,10 @@ class Batch:
         # t_T(T)=alpha_T*T+beta_T
         self.status = 4
         current_ending = current_time + alpha_T*self.num_req + beta_T
-        self.current_ending = math.ceil(current_ending)
+        if self.ceiling:
+            self.current_ending = math.ceil(current_ending)
+        else:
+            self.current_ending = current_ending
 
         self.F_finish.append(current_time)
         
@@ -116,7 +149,7 @@ class Batch:
             else:
                 self.finish_request(current_time, request)
 
-    def update_info(self, current_time):
+    def updated_info(self, current_time):
         return self.num_req, self.length
 
     def has_free_slot(self, current_time)->bool:
