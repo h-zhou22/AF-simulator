@@ -14,6 +14,12 @@ class Server:
         self.unit_FFN_time = unit_FFN_time
         self.current_busy = False
 
+        # 按照逐个Batch进行AF匹配还是整个Server一同进行AF匹配
+        self.batch_matched = False
+        self.mapped_FFN_id = -1
+        self.FFN_level = -1
+        #self.FFN_server_cnt = 0
+
         #self.ceiling = True
 
     def load_request_to_batch(self, current_time, batch_id, request:Request):
@@ -95,3 +101,7 @@ class Server:
         total_cost = self.compute_total_cost(alpha_A, beta_A)
         total_unit = total_cost / (self.unit_FFN_time*self.num_batches)
         return total_unit
+
+    def map_to_FFN(self, FFN_id, FFN_level):
+        self.mapped_FFN_id = FFN_id
+        self.FFN_level = FFN_level
