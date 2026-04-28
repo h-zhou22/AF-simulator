@@ -429,6 +429,9 @@ class PipelineScheduler:
                     new_info = (info0, info1, batch_id0, server_id0)
                     available_batches.append(new_info)
             
+            # 在free slot被填补之后，关注各个attention以及各个Batch的大小变化
+                
+
             for server in self.servers:
                 server.attention_work(current_time, self.alpha_A, self.beta_A)
             for FFN_worker in self.FFN_workers:
