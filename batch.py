@@ -44,6 +44,9 @@ class Batch:
         # 用时是否需要上取整,注意代码各处应保持相同
         # 在取整的情况下, current_ending总是整数
 
+        # 需要被交换, 尚未完成交换，需要丢弃已经load尚在排队的FFN工作
+        self.being_swapped = False
+
     def append_request(self, current_time,  request:Request):
         self.requests.append(request)
         request.start_processing(current_time, self.batch_id)
@@ -114,8 +117,10 @@ class Batch:
             self.current_ending = math.ceil(current_ending)
         else:
             self.current_ending = current_ending
-        
-        self.A_finish.append(current_time) 
+        if not self.being_swapped:
+            self.A_finish.append(current_time) 
+        else:
+            self.being_swapped = False
 
     def F2A_transmission(self, current_time, alpha_T, beta_T):
         # t_T(T)=alpha_T*T+beta_T
@@ -171,3 +176,6 @@ class Batch:
     def collect_makespan(self, current_time):
         # TODO
         None
+
+    def discasrd_loading_FFN(self):
+        self.F_arrival.pop()

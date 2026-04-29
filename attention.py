@@ -18,6 +18,7 @@ class Server:
         self.batch_matched = False
         self.mapped_FFN_id = -1
         self.FFN_level = -1
+        self.balanced_FFN = 0 # 当前分配的FFN_worker是否满足其需要。0恰当, 1过多, -1过少
         #self.FFN_server_cnt = 0
 
         #self.ceiling = True
@@ -105,3 +106,6 @@ class Server:
     def map_to_FFN(self, FFN_id, FFN_level):
         self.mapped_FFN_id = FFN_id
         self.FFN_level = FFN_level
+
+    def update_FFN_level(self, alpha_A, beta_A):
+        self.unit_FFN_time = self.compute_total_unit_cost(alpha_A, beta_A)
