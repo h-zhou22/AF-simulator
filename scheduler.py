@@ -127,6 +127,7 @@ class PipelineScheduler:
         # 这里的FFN count在每次floor值更新后都需要维护原有顺序
         self.Batch_FFN_unit_count : Dict[int, float] = {}
         self.server_FFN_unit_count : Dict[int, float] = {}
+        self.server_FFN_unit_order : List[Tuple[int, float]] = []
 
         # 单个FFN worker至多同时为多少个Attention server提供服务, 在此调整
         self.max_AF_ratio = 5
@@ -383,7 +384,7 @@ class PipelineScheduler:
     def update_AF_ratio_bounds(self):
         # 再计算恰好匹配的情况下需要的FFN worker的数量区间
         cnt_low = 0
-        for i in range(self.max_AF_ratio):
+        for i in range(self.max_AF_ratio + 1):
             tot_server = self.AF_ratio_count[i]
             if i == self.max_AF_ratio:
                 tot_server += self.AF_ratio_count[i+1]
@@ -406,10 +407,15 @@ class PipelineScheduler:
     def do_initial_FFN_unit_recording(self):
         for batch in self.stored_batches.values():
             self.Batch_FFN_unit_count[batch.batch_id] = batch.compute_num_F_unit_time(self.alpha_A, self.beta_A)
-        self.Batch_FFN_unit_count = sorted(self.Batch_FFN_unit_count.items(), key=lambda x: x[1], reverse=True)
+        
+        self.Batch_FFN_unit_order = sorted(
+        self.Batch_FFN_unit_count.items(), key=lambda x: x[1], reverse=True)
+
         for server in self.servers:
-            self.server_FFN_unit_count[server.server_id] = server.compute_total_unit_cost(self.alpha_A, self.beta_A)
-        self.server_FFN_unit_count = sorted(self.server_FFN_unit_count.items(), key=lambda x: x[1], reverse=True)
+            self.server_FFN_unit_count[server.server_id] = server.compute_total_unit_cost(
+                self.alpha_A, self.beta_A)
+        self.server_FFN_unit_order = sorted(
+            self.server_FFN_unit_count.items(), key=lambda x: x[1], reverse=True)
     
 
     def do_cycle_work(self, current_time):
@@ -441,14 +447,101 @@ class PipelineScheduler:
             # 在free slot被填补之后，关注各个attention以及各个Batch的大小变化
             for server in self.servers:
                 server.update_FFN_level(self.alpha_A, self.beta_A)
-                
+            exchange_pairs = self.find_exchange_pairs()
+            for pair in exchange_pairs:
+                self.apply_swap_pair(current_time, pair[0], pair[1])
+                # TODO 在server当中维护两个Batch的归属信息、状态信息
+                self.servers[pair[0]]
 
             for server in self.servers:
                 server.attention_work(current_time, self.alpha_A, self.beta_A)
             for FFN_worker in self.FFN_workers:
                 FFN_worker.cycle_work(current_time, self.alpha_F, self.beta_F)
 
-            
+    def apply_swap_pair(self, current_time: int, server_id_a: int, server_id_b: int):
+        """交换两个 server 各自维护的两个 batch 所归属的 FFN.
+        只负责交换,关于Batch交换后状态的维护需要额外的逻辑进行处理"""
+        server_a = self.servers[server_id_a]
+        server_b = self.servers[server_id_b]
+        ffn_id_a = self.AF_match[server_id_a]
+        ffn_id_b = self.AF_match[server_id_b]
+        if ffn_id_a == ffn_id_b:
+            return   # 同一 FFN, 不需要 swap
+
+        ffn_a = self.FFN_workers[ffn_id_a]
+        ffn_b = self.FFN_workers[ffn_id_b]
+
+        # server_a 的两个 batch 全部从 ffn_a 搬到 ffn_b,
+        # server_b 的两个 batch 全部从 ffn_b 搬到 ffn_a.
+        # 用 swap_batches_between_ffns 一次处理一对 batch (a 的一个 + b 的一个).
+        a_batches = list(server_a.batches)
+        b_batches = list(server_b.batches)
+        assert len(a_batches) == len(b_batches), \
+            f"server batches mismatch: {len(a_batches)} vs {len(b_batches)}"
+
+        for batch_a, batch_b in zip(a_batches, b_batches):
+            self.swap_batches_between_ffns(ffn_a, batch_a, ffn_b, batch_b)
+
+        # 更新 AF_match / AF_graph
+        self.AF_match[server_id_a] = ffn_id_b
+        self.AF_match[server_id_b] = ffn_id_a
+        self.AF_graph[ffn_id_a].remove(server_id_a)
+        self.AF_graph[ffn_id_a].append(server_id_b)
+        self.AF_graph[ffn_id_b].remove(server_id_b)
+        self.AF_graph[ffn_id_b].append(server_id_a)
+
+        # 更新 server 一侧的归属标签
+        new_level_a = self._ffn_level_of(ffn_id_b)
+        new_level_b = self._ffn_level_of(ffn_id_a)
+        server_a.map_to_FFN(ffn_id_b, new_level_a)
+        server_b.map_to_FFN(ffn_id_a, new_level_b)
+
+
+    def _ffn_level_of(self, ffn_id: int) -> int:
+        """从 FFN_table 反查 level. swap 不改 level 字段, 此处 ffn_id 一定能找到."""
+        for level in range(self.max_AF_ratio + 1):
+            for lf in self.FFN_table[level]:
+                if lf.FFN_id == ffn_id:
+                    return level
+        raise ValueError(f"FFN {ffn_id} not found in FFN_table")   
+
+    def _server_target_level(self, server) -> int:
+        """该 server 按当前权值'本应'所属的 level."""
+        return min(math.floor(server.current_weight), self.max_AF_ratio)
+
+    def find_swap_pairs(self) -> List[Tuple[int, int]]:
+        """返回 [(server_id_a, server_id_b), ...].
+
+        匹配条件: a 当前在 La 层但应该去 Lb 层; b 当前在 Lb 层但应该去 La 层.
+        每个 server 至多出现在一对中.
+        """
+        deviated_by_pair: Dict[Tuple[int, int], List[int]] = defaultdict(list)
+        for server in self.servers:
+            cur_L = server.current_mapped_level
+            tgt_L = self._server_target_level(server)
+            if cur_L == tgt_L:
+                continue
+            deviated_by_pair[(cur_L, tgt_L)].append(server.server_id)
+
+        pairs: List[Tuple[int, int]] = []
+        used: set = set()
+        for (cur_L, tgt_L), bucket in deviated_by_pair.items():
+            if cur_L >= tgt_L:
+                continue   # 只从一边遍历, 避免重复
+            opposite = deviated_by_pair.get((tgt_L, cur_L), [])
+            i = j = 0
+            while i < len(bucket) and j < len(opposite):
+                sa = bucket[i]
+                sb = opposite[j]
+                if sa in used:
+                    i += 1; continue
+                if sb in used:
+                    j += 1; continue
+                pairs.append((sa, sb))
+                used.add(sa); used.add(sb)
+                i += 1; j += 1
+        return pairs
+
 
 class DynamicScheduler:
     def __init__(self, servers:List[Server], FFN_workers:List[dynamic_FFN], stats, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F):

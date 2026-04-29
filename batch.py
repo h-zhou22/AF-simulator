@@ -22,7 +22,7 @@ class Batch:
         self.status = 0
         # 0: Empty
         # 1: Attention processing, 2: FFN processing
-        # 3: A2F transfer, 4 F2A transfer
+        # 3: F2A transfer, 4 A2F transfer
         # 5: Waiting for allocation in attention 
         # 6: Waiting for allocation in FFN
         self.current_ending = 0 # Time to finish current stage
@@ -111,7 +111,7 @@ class Batch:
 
     def A2F_transmission(self, current_time, alpha_T, beta_T):
         # t_T(T)=alpha_T*T+beta_T
-        self.status = 3
+        self.status = 4
         current_ending = current_time + alpha_T*self.num_req + beta_T
         if self.ceiling:
             self.current_ending = math.ceil(current_ending)
@@ -124,7 +124,7 @@ class Batch:
 
     def F2A_transmission(self, current_time, alpha_T, beta_T):
         # t_T(T)=alpha_T*T+beta_T
-        self.status = 4
+        self.status = 3
         current_ending = current_time + alpha_T*self.num_req + beta_T
         if self.ceiling:
             self.current_ending = math.ceil(current_ending)
@@ -179,3 +179,10 @@ class Batch:
 
     def discasrd_loading_FFN(self):
         self.F_arrival.pop()
+
+    def reactivate_after_match_switching(self, current_time, alpha_T, beta_T):
+        if self.status == 6 or self.status == 4:
+        # 这种情况下需要重新分配给新的FFN worker完成此轮的传输
+        # 在这种情况下重新传输到新的FFN_worker开始下一阶段的传输
+            self.A2F_transmission(current_time, alpha_T, beta_T)
+            self.being_swapped = True
