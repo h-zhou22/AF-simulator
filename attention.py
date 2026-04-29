@@ -20,7 +20,9 @@ class Server:
         self.FFN_level = -1
         self.balanced_FFN = 0 # 当前分配的FFN_worker是否满足其需要。0恰当, 1过多, -1过少
         #self.FFN_server_cnt = 0
-
+        """ 上一个完成的Batch的ID, 在整个server换组时方便考虑哪个在前
+        以开始FFN工作的时间为准, 因为最后已经开始的FFNwork不会因换组而中止"""
+        self.last_finished_batch_id = -1
         #self.ceiling = True
 
     def load_request_to_batch(self, current_time, batch_id, request:Request):
@@ -109,3 +111,7 @@ class Server:
 
     def update_FFN_level(self, alpha_A, beta_A):
         self.unit_FFN_time = self.compute_total_unit_cost(alpha_A, beta_A)
+
+    def reactivate_batches(self, current_time, alpha_A, beta_A, alpha_T, beta_T):
+        for batch in self.batches.values():
+            batch.reactivate_after_match_switching(current_time, alpha_T, beta_T)
