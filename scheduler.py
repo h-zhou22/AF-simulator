@@ -97,9 +97,15 @@ class level_FFN:
     # 实际为几个server服务
     server_cnt: int
 
+class unbalanced_server_info:
+    server_id: int
+    FFN_id: int
+    current_mapped_level: int
+    current_size_level: int
+
 class PipelineScheduler:
 # AF之间存在固定匹配，可能会被动态修改
-    def __init__(self, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
+    def __init__(self, servers:List[Server], FFN_workers:List[dynamic_FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
         self.servers = servers
         self.batch_size = servers[0].batch_size
         self.buffer = buffer
@@ -129,7 +135,8 @@ class PipelineScheduler:
         # 不同AF比的server的server_id
         self.AF_ratio_list : List[List[int]] = [[] for _ in range(self.max_AF_ratio + 1)]
         
-        
+        self.unbalanced_servers : List[unbalanced_server_info] = []
+
         self.FFN_lower_bound = 0
         self.FFN_upper_bound = len(self.FFN_workers)
         # 0 For Proper. 1 For Too many FFN, 2 For Too many Attention
@@ -288,6 +295,7 @@ class PipelineScheduler:
                     for sid in shed_servers:
                         self.AF_match[sid] = new_ffn_id
                         self.AF_graph[new_ffn_id].append(sid)
+                        self.servers[sid].map_to_FFN(new_ffn_id, level)
 
                     # 注意: 这里 marked_cnt / server_cnt 用实际接管数量
                     # (chunk 不足 target_group_size 时, 新 FFN 只有部分 server)
@@ -355,6 +363,7 @@ class PipelineScheduler:
                         for sid in shed:
                             self.AF_match[sid] = new_id
                             self.AF_graph[new_id].append(sid)
+                            self.servers[sid].map_to_FFN(new_id, level)
 
                         new_lf = level_FFN(
                             FFN_id=new_id,
@@ -430,6 +439,8 @@ class PipelineScheduler:
                     available_batches.append(new_info)
             
             # 在free slot被填补之后，关注各个attention以及各个Batch的大小变化
+            for server in self.servers:
+                server.update_FFN_level(self.alpha_A, self.beta_A)
                 
 
             for server in self.servers:

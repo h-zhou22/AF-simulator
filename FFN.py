@@ -48,7 +48,7 @@ class BatchList:
         self.current = None
         self.batch_count = 0
         self.map = {}
-
+        
     def add_batch(self, batch: Batch):
         node = BatchNode(batch.batch_id, batch)
 
@@ -100,62 +100,82 @@ class BatchList:
         self.current = self.current.next
 
     def exchange_current_with_next(self):
-    # 动态维护流水线执行顺序
-        if self.current is None or self.current.next is None:
-            raise ValueError("Current node or next node is None, cannot exchange")
-        
-        next_node = self.current.next
-        prev_node = self.current.prev
-        current_node = self.current
+        if self.current is None or self.current.next is None or self.current.next is self.current:
+            raise ValueError("Current node or next node is None/self, cannot exchange")
 
-        # 交换当前节点和下一个节点
-        prev_node.next = next_node
-        next_node.prev = prev_node
-        next_node.next = current_node
+        prev_node    = self.current.prev
+        current_node = self.current
+        next_node    = current_node.next
+        nn_node      = next_node.next  # 新增: 必须保留 next.next, 否则会断链
+
+        # 二节点环 (A == next.next, prev_node 其实就是 next_node) 的退化情况
+        if nn_node is current_node:
+            # 双向环只有 current 和 next, 拓扑上 swap 后等价于原图,
+            # 仅 head/tail/current 标记需要调整
+            if self.head is current_node:
+                self.head, self.tail = next_node, current_node
+            else:
+                self.head, self.tail = current_node, next_node
+            self.current = next_node
+            return
+
+        # 通用情况: A <-> B <-> C <-> D  =>  A <-> C <-> B <-> D
+        prev_node.next   = next_node
+        next_node.prev   = prev_node
+        next_node.next   = current_node
         current_node.prev = next_node
+        current_node.next = nn_node      # 新增
+        nn_node.prev      = current_node # 新增
+
+        if self.head is current_node:
+            self.head = next_node
+        elif self.head is next_node:
+            self.head = current_node
+
+        if self.tail is current_node:
+            self.tail = next_node
+        elif self.tail is next_node:
+            self.tail = current_node
 
         self.current = next_node
 
-        
+    def exchange_current_with_prev(self):
+        if self.current is None or self.current.prev is None or self.current.prev is self.current:
+            raise ValueError("Current node or previous node is None/self, cannot exchange")
 
-        # 更新头尾指针
-        if self.head == current_node:
-            self.head = next_node
-        elif self.head == next_node:
+        prev_node    = self.current.prev
+        current_node = self.current
+        next_node    = current_node.next
+        pp_node      = prev_node.prev   # 新增: 保留 prev.prev
+
+        if pp_node is current_node:
+            # 二节点环退化情况
+            if self.head is current_node:
+                self.head, self.tail = prev_node, current_node
+            else:
+                self.head, self.tail = current_node, prev_node
+            self.current = prev_node
+            return
+
+        # X <-> P <-> B <-> N  =>  X <-> B <-> P <-> N
+        pp_node.next      = current_node
+        current_node.prev = pp_node
+        current_node.next = prev_node
+        prev_node.prev    = current_node
+        prev_node.next    = next_node     # 新增
+        next_node.prev    = prev_node     # 新增
+
+        if self.head is current_node:
+            self.head = prev_node
+        elif self.head is prev_node:
             self.head = current_node
 
-        if self.tail == current_node:
-            self.tail = next_node
-        elif self.tail == next_node:
+        if self.tail is current_node:
+            self.tail = prev_node
+        elif self.tail is prev_node:
             self.tail = current_node
-
-    def exchange_current_with_prev(self):
-    # 交换当前节点和前一个节点
-        if self.current is None or self.current.prev is None:
-            raise ValueError("Current node or previous node is None, cannot exchange")
-        
-        prev_node = self.current.prev
-        next_node = self.current.next
-        current_node = self.current
-
-        # 交换当前节点和前一个节点
-        prev_node.prev.next = current_node
-        current_node.prev = prev_node.prev
-        current_node.next = prev_node
-        prev_node.prev = current_node
 
         self.current = prev_node
-
-        # 更新头尾指针
-        if self.head == current_node:
-            self.head = prev_node
-        elif self.head == prev_node:
-            self.head = current_node
-
-        if self.tail == current_node:
-            self.tail = prev_node
-        elif self.tail == prev_node:
-            self.tail = current_node
 
     # 还需增添与前序节点交换的方法
     def exchange_current_with_given(self, batch_id):
@@ -174,7 +194,7 @@ class BatchList:
             self.exchange_current_with_next()
             return
         if prev_node == target_node:
-            self.exchange_current_with_prev()
+            self.current = prev_node
             return
 
         
@@ -183,43 +203,86 @@ class BatchList:
 
         current_node = self.current
 
-        target_prev = target_node.prev
-        target_next = target_node.next
-        
+        # 1) 把 target 从原位置摘出
+        t_prev = target_node.prev
+        t_next = target_node.next
+        t_prev.next = t_next
+        t_next.prev = t_prev
+        if self.head is target_node:
+            self.head = t_next
+        if self.tail is target_node:
+            self.tail = t_prev
 
-        # 交换当前节点和目标节点
-        prev_node.next = target_node
-        target_node.prev = prev_node
+        # 2) 插入到 current 前面: ... <-> c_prev <-> target <-> current <-> ...
+        c_prev = current_node.prev
+        c_prev.next = target_node
+        target_node.prev = c_prev
+        target_node.next = current_node
+        current_node.prev = target_node
 
-        next_node.prev = target_node
-        target_node.next = next_node
-
-        target_prev.next = current_node
-        current_node.prev = target_prev
-
-        target_next.prev = current_node
-        current_node.next = target_next
+        # 3) 若 current 原本是 head, 现在 target 排到了它前面, target 成为新 head
+        if self.head is current_node:
+            self.head = target_node
 
         self.current = target_node
 
-        # 更新头尾指针
-        if self.head == self.current:
-            self.head = target_node
-        elif self.head == target_node:
-            self.head = self.current
+    def replace_batch_with(self, old_batch_id, new_batch: Batch,
+                        inherit_load_ready: bool = False) -> 'BatchNode':
+        """用 new_batch 原位替换 old_batch_id 所在的节点. 返回旧节点 (可能是 ghost).
 
-        if self.tail == self.current:
-            self.tail = target_node
-        elif self.tail == target_node:
-            self.tail = self.current
+        mark_old_ephemeral=False: 旧节点 prev/next 清空, 直接交给 GC.
+        mark_old_ephemeral=True : 旧节点 ephemeral=True, 保留 next 指向其原后继
+                                (单向悬挂, 双向链表里已经看不到它了);
+                                调用方负责后续 dispose_ephemeral.
+        inherit_load_ready=True : 新节点继承旧节点的 load_ready (一般用于 NEW 已就绪的情形).
+        """
+        old_node = self.map.get(old_batch_id)
+        if old_node is None:
+            raise ValueError(f"Batch {old_batch_id} not found in BatchList, cannot replace")
+        if new_batch.batch_id in self.map:
+            raise ValueError(f"Batch {new_batch.batch_id} already in BatchList, cannot replace")
 
+        new_node = BatchNode(new_batch.batch_id, new_batch)
+        new_node.load_ready = old_node.load_ready if inherit_load_ready else False
+
+        # 单节点环
+        if old_node is self.head and old_node is self.tail:
+            new_node.next = new_node
+            new_node.prev = new_node
+            self.head = new_node
+            self.tail = new_node
+        else:
+            prev_node = old_node.prev
+            next_node = old_node.next
+            new_node.prev = prev_node
+            new_node.next = next_node
+            prev_node.next = new_node
+            next_node.prev = new_node
+            if self.head is old_node:
+                self.head = new_node
+            if self.tail is old_node:
+                self.tail = new_node
+        
+        if self.current is old_node:
+            self.current = new_node
+
+        del self.map[old_batch_id]
+        self.map[new_batch.batch_id] = new_node
+        # batch_count 不变 (1-to-1)
+
+        return old_node
+    
+# FFN只维护自身流水线的状态，BatchNode可以与实际的Batch无关
+# Batchlist只有顺序是重要的。如果当前Node被交换, 那么current node的Batch可能并非实际处理的Batch
 class dynamic_FFN:
 # 可以改变流水线顺序的FFN worker, 可以寻找下一个准备就绪的Batch而非严格按照顺序执行
     def __init__(self, worker_id, should_serve_num_batches, allow_exchange=False):
         self.worker_id = worker_id
         self.current_busy = False
         self.current_ending = -1
-        self.current_pointer_id = 0
+
+        self.processing_batch_id = -1     # 当前正在被 FFN 处理的节点
+        
 
         self.allow_exchange = allow_exchange
         
@@ -257,6 +320,10 @@ class dynamic_FFN:
             if current_time < self.current_ending:
                 return
             self.current_busy = False
+            
+            self.processing_batch_id = -1
+
+        # 此时current_busy=False, 寻找下一个处理的BatchNode    
         if self.buffer.batch_count > 0:
             # TODO, 请检查此处修改后的逻辑正确情况
             # TODO, 是否允许交换流水线顺序的逻辑
@@ -265,16 +332,19 @@ class dynamic_FFN:
                     return
                 else:
                     self.current_busy = True
+                    self.processing_batch_id = self.buffer.current.batch_id
                     self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
-                    # 在开始处理时就更改Buffer的状态
+                    # current_node事实上被切换到了下一个节点
                     self.buffer.finish_current_work()
+                    
             else:
             # 寻找到下一个就绪的Node并在流水线上与当前节点交换
                 if self.buffer.current.load_ready:
                     self.current_busy = True
+                    self.processing_batch_id = self.buffer.current.batch_id
                     self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
-                    # 在开始处理时就更改Buffer的状态
                     self.buffer.finish_current_work()
+                    
                 else:
                     # 寻找下一个就绪的Node
                     next_node = self.buffer.current.next
@@ -287,8 +357,41 @@ class dynamic_FFN:
                             break
                         next_node = next_node.next
                     if find_ready:
+                        
+                        self.processing_batch_id = self.buffer.current.batch_id
                         self.current_busy = True
                         self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
                         # 在开始处理时就更改Buffer的状态
                         self.buffer.finish_current_work()
-           
+    def replace_batch(self, current_time, old_batch_id, new_batch: Batch,
+                  inherit_load_ready: bool = False):
+        """用 new_batch 替换 pipeline 里 old_batch_id 对应的 batch, 保持其在流水线中的位置.
+        允许替换任意状态的 batch:
+- status==2 (in-flight): old_batch 通过 current_ending 时间戳完成当前轮 FFN 工作,
+  new_batch 占据其 pipeline 槽位等待下一轮. 其实也没有太大影响,正常load即可
+- status==6 (已 load 但未开始): 由 Attention 侧负责丢弃当前轮 FFN 工作并重做 A2F.
+- 其他状态: 仅做节点身份替换.
+
+调用方约定: 通常仅由 swap_batches_between_ffns 调用, 后者保证两边对换原子完成.
+        """
+        old_node = self.buffer.map.get(old_batch_id)
+        if old_node is None:
+            raise ValueError(
+                f"Batch {old_batch_id} not found in FFN {self.worker_id} pipeline, cannot replace")
+
+        # 此处有待商榷, 已经匹配的Batch仍可以被重新分配 
+        # if new_batch.matched_FFN_id != -1:
+        #     raise ValueError(
+        #         f"Batch {new_batch.batch_id} already matched to FFN {new_batch.matched_FFN_id}, "
+        #         f"cannot place into FFN {self.worker_id}")
+
+        # 不能取消id，否则先交换的batch的FFN_id会被覆盖
+        # old_node.batch.matched_FFN_id = -1
+
+        # 原位替换
+        self.buffer.replace_batch_with(old_batch_id, new_batch,
+                                    inherit_load_ready=inherit_load_ready)
+
+        # 绑定新 batch
+        new_batch.matched_FFN_id = self.worker_id
+        # served_num_batches / should_serve_batches 不变 (1-to-1 swap)
