@@ -96,6 +96,7 @@ class UniformRandomGenerator:
         
         self.basic_length = basic_length
         
+        # print("Basic Length, Maximal Generation: ",self.basic_length, self.maximal_generation)
         assert self.basic_length <= self.maximal_generation
 
     def generate_length(self):
@@ -103,6 +104,22 @@ class UniformRandomGenerator:
         生成一个均匀分布的 request 长度
         """
         return self.rng.randint(1, self.max_length)
+
+    def do_initial_generation(self):
+        requests = []
+        while self.gen_tot < self.basic_length:
+                if self.gen_tot >= self.maximal_generation:
+                    break
+                
+                
+                length = self.generate_length()
+                new_req = Request(rid=self.next_request_id, arrival_time=0, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
+                new_req.generated_time = 0
+                self.next_request_id += 1
+
+                requests.append(new_req)
+                self.gen_tot += 1
+        return requests
 
     def step(self, global_time):
         """

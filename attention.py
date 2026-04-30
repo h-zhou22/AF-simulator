@@ -111,6 +111,8 @@ class Server:
     def map_to_FFN(self, FFN_id, FFN_level):
         self.mapped_FFN_id = FFN_id
         self.FFN_level = FFN_level
+        for batch in self.batches.values():
+            batch.map_to_FFN(FFN_id, FFN_level)
 
     def update_FFN_level(self, alpha_A, beta_A):
         self.weight = self.compute_total_unit_cost(alpha_A, beta_A)

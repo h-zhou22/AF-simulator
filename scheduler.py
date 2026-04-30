@@ -108,7 +108,7 @@ class level_FFN:
 
 class PipelineScheduler:
 # AF之间存在固定匹配，可能会被动态修改
-    def __init__(self, servers:List[Server], FFN_workers:List[dynamic_FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
+    def __init__(self, servers:List[Server], FFN_workers:List[dynamic_FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
         self.servers = servers
         self.batch_size = servers[0].batch_size
         self.buffer = buffer
@@ -157,7 +157,8 @@ class PipelineScheduler:
         self.do_initial_matching()
 
     def do_initialize_filling(self):
-        if self.buffer().size() < self.num_batches*self.batch_size:
+        print("Buffer size, Need to fill",len(self.buffer),self.num_batches*self.batch_size)
+        if len(self.buffer) < self.num_batches*self.batch_size:
             raise ValueError("Buffer size is smaller than total batch capacity")
         for batch in self.stored_batches.values():
             while batch.num_req < batch.batch_size:
@@ -165,7 +166,7 @@ class PipelineScheduler:
                 batch.append_request(0, request)
                 # load_request加入之后会立刻开始处理, 所以初始化都用append
             batch.start_processing_from_empty(0)
-
+        
     def do_initial_matching(self):
         # 先记录初始时AF用时比例分配初始资源
         self.do_initial_FFN_unit_recording()
@@ -384,7 +385,11 @@ class PipelineScheduler:
 
                 if not progress:   # 所有 level 都减不动了, 提前退出
                     break
-
+        
+        for batch in self.stored_batches.values():
+            print("Batch ID: ", batch.batch_id)
+            print("Matched FFN worker: ", batch.mapped_FFN_id)
+            print("Matched FFN level: ", batch.FFN_level)
 
     def update_AF_ratio_bounds(self):
         # 再计算恰好匹配的情况下需要的FFN worker的数量区间
@@ -470,6 +475,8 @@ class PipelineScheduler:
     def apply_swap_pair(self, current_time: int, server_id_a: int, server_id_b: int):
         """交换两个 server 各自维护的两个 batch 所归属的 FFN.
         只负责交换,关于Batch交换后状态的维护需要额外的逻辑进行处理"""
+        print("We Swap! Cycle: ",current_time)
+
         server_a = self.servers[server_id_a]
         server_b = self.servers[server_id_b]
         ffn_id_a = self.AF_match[server_id_a]
@@ -529,14 +536,17 @@ class PipelineScheduler:
     def relocate_unpaired_deviated(self, current_time):
         """对所有仍处偏离的 server, 找 level 匹配且有空缺的 FFN 单独搬过去.
         swap 之后调用. 找不到目标的 server 跳过."""
+        
         for server in self.servers:
-            cur_L = server.current_mapped_level
+            cur_L = server.FFN_level
             tgt_L = self._server_target_level(server)
             if cur_L == tgt_L:
                 continue
             target = self._find_relocation_target(tgt_L)
             if target is None:
                 continue
+            print("We change! ", current_time)
+            print("Relocated Server ID", server.server_id)
             self._relocate_server(current_time, server.server_id, target.FFN_id)
     
     def refresh_mixed_flags(self):
@@ -548,6 +558,8 @@ class PipelineScheduler:
             for lf in level_buckets:
                 servers = self.AF_graph.get(lf.FFN_id, [])
                 if not servers:
+                    lf.mixed_server_level = False
+                    lf.server_cnt = 0
                     continue
                 target_levels = {self._server_target_level(self.servers[sid]) for sid in servers}
                 lf.mixed_server_level = (target_levels != {lf.level})
@@ -563,7 +575,8 @@ class PipelineScheduler:
 
     def _server_target_level(self, server) -> int:
         """该 server 按当前权值'本应'所属的 level."""
-        server_weight = server.compute_total_unit_cost(self.alpha_A, self.beta_A)
+        server_weight = server.weight
+        # server_weight = server.compute_total_unit_cost(self.alpha_A, self.beta_A)
         return min(math.floor(server_weight), self.max_AF_ratio)
 
     def find_swap_pairs(self) -> List[Tuple[int, int]]:
@@ -574,7 +587,7 @@ class PipelineScheduler:
         """
         deviated_by_pair: Dict[Tuple[int, int], List[int]] = defaultdict(list)
         for server in self.servers:
-            cur_L = server.current_mapped_level
+            cur_L = server.FFN_level
             tgt_L = self._server_target_level(server)
             if cur_L == tgt_L:
                 continue
