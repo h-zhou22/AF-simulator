@@ -12,6 +12,7 @@ class Server:
         assert len(batches) == num_batches
         self.server_id = server_id
         self.unit_FFN_time = unit_FFN_time
+        self.weight = 0
         self.current_busy = False
 
         # 按照逐个Batch进行AF匹配还是整个Server一同进行AF匹配
@@ -23,6 +24,7 @@ class Server:
         """ 上一个完成的Batch的ID, 在整个server换组时方便考虑哪个在前
         以开始FFN工作的时间为准, 因为最后已经开始的FFNwork不会因换组而中止"""
         self.last_finished_batch_id = -1
+        self.first_finished_batch_id = -1
         #self.ceiling = True
 
     def load_request_to_batch(self, current_time, batch_id, request:Request):
@@ -63,7 +65,8 @@ class Server:
             elif batch.status == 2:
                 if current_time >= batch.current_ending:
                     batch.F2A_transmission(current_time, alpha_T, beta_T)
-
+                    self.first_finished_batch_id = self.last_finished_batch_id
+                    self.last_finished_batch_id = batch_id
     def attention_work(self, current_time, alpha_A, beta_A):
         for batch_id, batch in self.batches.items():
             if batch.status == 5: # Waiting for allocation in attention
@@ -85,8 +88,8 @@ class Server:
     # 每轮计算开始时均需更新. 运输时间可以省略
         batch = self.batches[batch_id]
         tot_len = 0
-        for batch_id in self.batches:
-            if batch_id == batch_id:
+        for bid in self.batches:
+            if bid == batch_id:
                 continue
             other_batch = self.batches[batch_id]
             tot_len += other_batch.length
@@ -110,7 +113,7 @@ class Server:
         self.FFN_level = FFN_level
 
     def update_FFN_level(self, alpha_A, beta_A):
-        self.unit_FFN_time = self.compute_total_unit_cost(alpha_A, beta_A)
+        self.weight = self.compute_total_unit_cost(alpha_A, beta_A)
 
     def reactivate_batches(self, current_time, alpha_A, beta_A, alpha_T, beta_T):
         for batch in self.batches.values():
