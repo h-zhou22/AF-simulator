@@ -6,6 +6,7 @@ from attention import Server
 from typing import List, Dict, Tuple
 from collections import defaultdict
 from FFN import FFN, dynamic_FFN
+from dataclasses import dataclass
 
 class BasicScheduler:
 # AF之间固定匹配不再更改
@@ -85,9 +86,10 @@ class AF_match:
     FFN_id: int
     FFN_worker: FFN
 
+@dataclass
 class level_FFN:
     FFN_id: int
-    FFN_worker: FFN
+    FFN_worker: 'dynamic_FFN'
     # 应该为几个server服务
     marked_cnt: int
     # 服务的server位于第几层, 如跨层则选取其中较高的为标准
@@ -97,11 +99,12 @@ class level_FFN:
     # 实际为几个server服务
     server_cnt: int
 
-class unbalanced_server_info:
-    server_id: int
-    FFN_id: int
-    current_mapped_level: int
-    current_size_level: int
+# @dataclass
+# class unbalanced_server_info:
+#     server_id: int
+#     FFN_id: int
+#     current_mapped_level: int
+#     current_size_level: int
 
 class PipelineScheduler:
 # AF之间存在固定匹配，可能会被动态修改
@@ -136,7 +139,7 @@ class PipelineScheduler:
         # 不同AF比的server的server_id
         self.AF_ratio_list : List[List[int]] = [[] for _ in range(self.max_AF_ratio + 1)]
         
-        self.unbalanced_servers : List[unbalanced_server_info] = []
+        # self.unbalanced_servers : List[unbalanced_server_info] = []
 
         self.FFN_lower_bound = 0
         self.FFN_upper_bound = len(self.FFN_workers)
@@ -195,6 +198,7 @@ class PipelineScheduler:
                     flag = True
                     for server_id in level_remain_list:
                         self.AF_match[server_id] = FFN_id
+                        self.servers[server_id].map_to_FFN(FFN_id, level)
                         self.AF_graph[FFN_id].append(server_id)
                     
                     level_remainder = 0
@@ -203,6 +207,7 @@ class PipelineScheduler:
                 for i in range(server_to_fill):
                     server_id = self.AF_ratio_list[level][level_cnt-i-1]
                     self.AF_match[server_id] = FFN_id
+                    self.servers[server_id].map_to_FFN(FFN_id, level)
                     self.AF_graph[FFN_id].append(server_id)
                 if flag:
                     new_level_FFN = level_FFN(FFN_id=FFN_id, FFN_worker=self.FFN_workers[FFN_id], marked_cnt=group_cnt, level=level, mixed_server_level=True, server_cnt=group_cnt)
@@ -384,9 +389,9 @@ class PipelineScheduler:
     def update_AF_ratio_bounds(self):
         # 再计算恰好匹配的情况下需要的FFN worker的数量区间
         cnt_low = 0
-        for i in range(self.max_AF_ratio + 1):
+        for i in range(self.max_AF_ratio):
             tot_server = self.AF_ratio_count[i]
-            if i == self.max_AF_ratio:
+            if i == self.max_AF_ratio -1:
                 tot_server += self.AF_ratio_count[i+1]
             cnt_low += math.ceil(tot_server / (i+1)) 
         self.FFN_lower_bound = cnt_low
@@ -419,7 +424,7 @@ class PipelineScheduler:
     
 
     def do_cycle_work(self, current_time):
-            for server_id in len(self.servers):
+            for server_id in range(len(self.servers)):
             # 这里假定了server和FFN的ID是按照顺序排列的，后续Debug的时候需注意
                 server = self.servers[server_id]
                 FFN_server = self.FFN_workers[self.AF_match[server_id]]
@@ -447,11 +452,15 @@ class PipelineScheduler:
             # 在free slot被填补之后，关注各个attention以及各个Batch的大小变化
             for server in self.servers:
                 server.update_FFN_level(self.alpha_A, self.beta_A)
-            exchange_pairs = self.find_exchange_pairs()
+            exchange_pairs = self.find_swap_pairs()
             for pair in exchange_pairs:
                 self.apply_swap_pair(current_time, pair[0], pair[1])
                 # TODO 在server当中维护两个Batch的归属信息、状态信息
-                self.servers[pair[0]]
+                self.servers[pair[0]].reactivate_batches(current_time, self.alpha_A, self.beta_A, self.alpha_T, self.beta_T)
+                self.servers[pair[1]].reactivate_batches(current_time, self.alpha_A, self.beta_A, self.alpha_T, self.beta_T)
+            
+            self.relocate_unpaired_deviated(current_time)
+            self.refresh_mixed_flags()
 
             for server in self.servers:
                 server.attention_work(current_time, self.alpha_A, self.beta_A)
@@ -474,13 +483,12 @@ class PipelineScheduler:
         # server_a 的两个 batch 全部从 ffn_a 搬到 ffn_b,
         # server_b 的两个 batch 全部从 ffn_b 搬到 ffn_a.
         # 用 swap_batches_between_ffns 一次处理一对 batch (a 的一个 + b 的一个).
-        a_batches = list(server_a.batches)
-        b_batches = list(server_b.batches)
+        a_batches = list(server_a.batches.values())
+        b_batches = list(server_b.batches.values())
         assert len(a_batches) == len(b_batches), \
             f"server batches mismatch: {len(a_batches)} vs {len(b_batches)}"
 
-        for batch_a, batch_b in zip(a_batches, b_batches):
-            self.swap_batches_between_ffns(ffn_a, batch_a, ffn_b, batch_b)
+        
 
         # 更新 AF_match / AF_graph
         self.AF_match[server_id_a] = ffn_id_b
@@ -496,6 +504,54 @@ class PipelineScheduler:
         server_a.map_to_FFN(ffn_id_b, new_level_a)
         server_b.map_to_FFN(ffn_id_a, new_level_b)
 
+        batch_id_a_last = server_a.last_finished_batch_id
+        batch_id_a_first = server_a.first_finished_batch_id
+        batch_id_b_last = server_b.last_finished_batch_id
+        batch_id_b_first = server_b.first_finished_batch_id
+        if batch_id_a_last == -1 or batch_id_b_last == -1:
+            batch_list_a = list(server_a.batches.values())
+            batch_list_b = list(server_b.batches.values()) 
+            batch_id_a_last = batch_list_a[-1].batch_id
+            batch_id_b_last = batch_list_b[-1].batch_id
+            batch_id_a_first = batch_list_a[0].batch_id
+            batch_id_b_first = batch_list_b[0].batch_id
+    
+        batch_a_last = self.stored_batches[batch_id_a_last]
+        batch_a_first = self.stored_batches[batch_id_a_first]
+        batch_b_last = self.stored_batches[batch_id_b_last]
+        batch_b_first = self.stored_batches[batch_id_b_first]
+
+        ffn_a.replace_batch(current_time, batch_id_a_last, batch_b_last)
+        ffn_b.replace_batch(current_time, batch_id_b_last, batch_a_last)
+        ffn_a.replace_batch(current_time, batch_id_a_first, batch_b_first)
+        ffn_b.replace_batch(current_time, batch_id_b_first, batch_a_first)
+
+    def relocate_unpaired_deviated(self, current_time):
+        """对所有仍处偏离的 server, 找 level 匹配且有空缺的 FFN 单独搬过去.
+        swap 之后调用. 找不到目标的 server 跳过."""
+        for server in self.servers:
+            cur_L = server.current_mapped_level
+            tgt_L = self._server_target_level(server)
+            if cur_L == tgt_L:
+                continue
+            target = self._find_relocation_target(tgt_L)
+            if target is None:
+                continue
+            self._relocate_server(current_time, server.server_id, target.FFN_id)
+    
+    def refresh_mixed_flags(self):
+        """根据当前 AF_graph 重算每个 FFN 的 mixed_server_level 标记.
+
+        一个 FFN 是 mixed ⇔ 它服务的 server 的 current_mapped_level 不全相同.
+        """
+        for level_buckets in self.FFN_table:
+            for lf in level_buckets:
+                servers = self.AF_graph.get(lf.FFN_id, [])
+                if not servers:
+                    continue
+                target_levels = {self._server_target_level(self.servers[sid]) for sid in servers}
+                lf.mixed_server_level = (target_levels != {lf.level})
+                lf.server_cnt = len(servers)
 
     def _ffn_level_of(self, ffn_id: int) -> int:
         """从 FFN_table 反查 level. swap 不改 level 字段, 此处 ffn_id 一定能找到."""
@@ -507,7 +563,8 @@ class PipelineScheduler:
 
     def _server_target_level(self, server) -> int:
         """该 server 按当前权值'本应'所属的 level."""
-        return min(math.floor(server.current_weight), self.max_AF_ratio)
+        server_weight = server.compute_total_unit_cost(self.alpha_A, self.beta_A)
+        return min(math.floor(server_weight), self.max_AF_ratio)
 
     def find_swap_pairs(self) -> List[Tuple[int, int]]:
         """返回 [(server_id_a, server_id_b), ...].
@@ -541,7 +598,81 @@ class PipelineScheduler:
                 used.add(sa); used.add(sb)
                 i += 1; j += 1
         return pairs
+    
+    def _level_capacity(self, level: int, is_mixed: bool) -> int:
+        """FFN 当前的可容纳 server 数. 与 do_initial_matching 里 group_cnt 一致."""
+        if is_mixed:
+            return level                         # 混合 level=L 容量 = L
+        if level == self.max_AF_ratio:
+            return level                         # 顶层纯 = max
+        return level + 1                         # 其他纯 = L+1
 
+
+    def _level_FFN_of(self, ffn_id: int):
+        for level in range(self.max_AF_ratio + 1):
+            for lf in self.FFN_table[level]:
+                if lf.FFN_id == ffn_id:
+                    return lf
+        return None
+
+
+    def _find_relocation_target(self, tgt_L: int):
+        """在 level=tgt_L 找一个有空缺的 FFN. 优先纯, 其次空闲多."""
+        if tgt_L < 0 or tgt_L > self.max_AF_ratio:
+            return None
+        best, best_score = None, None
+        for lf in self.FFN_table[tgt_L]:
+            cap = self._level_capacity(lf.level, lf.mixed_server_level)
+            if lf.server_cnt >= cap:
+                continue
+            spare = cap - lf.server_cnt
+            score = (0 if lf.mixed_server_level else 1, spare)   # 纯 > 混合; 空缺多 > 少
+            if best is None or score > best_score:
+                best, best_score = lf, score
+        return best
+
+
+    def _relocate_server(self, current_time, server_id, dest_ffn_id):
+        """把单个 server 的两个 batch 从原 FFN 移到 dest_ffn_id."""
+        server = self.servers[server_id]
+        src_ffn_id = self.AF_match[server_id]
+        if src_ffn_id == dest_ffn_id:
+            return
+
+        src_ffn = self.FFN_workers[src_ffn_id]
+        dest_ffn = self.FFN_workers[dest_ffn_id]
+
+        # 注意: 不能用 replace_batch (没有对偶 batch 拿来换),
+        # 直接 modify_pipeline + construct_pipeline.
+        # status==2 的 in-flight batch: 节点从 src 链表摘除后, src FFN 仍按
+        #   self.current_ending 计时跑完, batch 自己走 F2A→A→A2F→load_batch(dest).
+        # status==6 与 status==4 的 batch: load_ready 状态丢失, 由下面 reactivate_batches 重做 A2F.
+        for batch in list(server.batches.values()):
+            src_ffn.modify_pipeline(current_time, batch.batch_id)
+            dest_ffn.construct_pipeline(current_time, batch)
+
+        # 维护 AF_match / AF_graph
+        self.AF_match[server_id] = dest_ffn_id
+        self.AF_graph[src_ffn_id].remove(server_id)
+        self.AF_graph[dest_ffn_id].append(server_id)
+
+        new_level = self._ffn_level_of(dest_ffn_id)
+        server.map_to_FFN(dest_ffn_id, new_level)
+
+        # 维护 FFN_table 计数 (mixed 标记由 refresh_mixed_flags 统一更新)
+        src_lf = self._level_FFN_of(src_ffn_id)
+        dest_lf = self._level_FFN_of(dest_ffn_id)
+        if src_lf is not None:
+            src_lf.server_cnt -= 1
+        if dest_lf is not None:
+            dest_lf.server_cnt += 1
+
+        # 触发 batch 状态修复 (status==6 重做 A2F; 其他状态无事发生)
+        server.reactivate_batches(current_time, self.alpha_A, self.beta_A,
+                                self.alpha_T, self.beta_T)
+
+
+    
 
 class DynamicScheduler:
     def __init__(self, servers:List[Server], FFN_workers:List[dynamic_FFN], stats, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F):

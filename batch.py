@@ -177,12 +177,16 @@ class Batch:
         # TODO
         None
 
-    def discasrd_loading_FFN(self):
+    def discard_loading_FFN(self):
         self.F_arrival.pop()
 
     def reactivate_after_match_switching(self, current_time, alpha_T, beta_T):
+        if self.status == 6:
+            # 推入了等待区一次，重新load会产生一次额外的FFN记次
+            self.discard_loading_FFN()
         if self.status == 6 or self.status == 4:
         # 这种情况下需要重新分配给新的FFN worker完成此轮的传输
         # 在这种情况下重新传输到新的FFN_worker开始下一阶段的传输
-            self.A2F_transmission(current_time, alpha_T, beta_T)
             self.being_swapped = True
+            self.A2F_transmission(current_time, alpha_T, beta_T)
+            
