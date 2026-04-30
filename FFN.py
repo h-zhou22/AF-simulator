@@ -48,7 +48,15 @@ class BatchList:
         self.current = None
         self.batch_count = 0
         self.map = {}
-        
+    
+    def print_all_batches(self):
+    # For debug usage, print all the batches loaded
+        print("Total batch count: ",self.batch_count)
+        iter_node = self.head
+        while iter_node != self.tail:
+            print("Batch ID: ", iter_node.batch_id)
+            iter_node = iter_node.next
+
     def add_batch(self, batch: Batch):
         node = BatchNode(batch.batch_id, batch)
 
@@ -294,6 +302,8 @@ class dynamic_FFN:
     
     def construct_pipeline(self, current_time, batch:Batch):
     # 向流水线中添加一个Batch
+        if self.worker_id == 6:
+            print("Appended Batch {} at time {}".format(batch.batch_id, current_time))
         if batch.matched_FFN_id != -1:
             raise ValueError(f"Batch {batch.batch_id} has already been matched to FFN {batch.matched_FFN_id}, cannot add to FFN {self.worker_id}")
         batch.matched_FFN_id = self.worker_id
@@ -311,7 +321,10 @@ class dynamic_FFN:
     def load_batch(self, current_time, batch:Batch):
         node = self.buffer.map.get(batch.batch_id)
         if node is None:
-                raise ValueError(f"Batch {batch.batch_id} not found in FFN pipeline")
+            print("FFN ID: ", self.worker_id)
+            self.buffer.print_all_batches()
+            print("Current cycle: ", current_time)
+            raise ValueError(f"Batch {batch.batch_id} not found in FFN pipeline")
 
         node.load_ready = True
         

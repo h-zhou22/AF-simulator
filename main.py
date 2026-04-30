@@ -5,7 +5,7 @@ from attention import Server
 from typing import Dict, List, Tuple
 from stats import StatsCollector
 from request import Request
-from FFN import FFN
+from FFN import FFN, dynamic_FFN
 from batch import Batch
 from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler
 from collections import deque
@@ -36,7 +36,7 @@ def parse_args():
                         help="Probability to generate next token (UR generator)")
     parser.add_argument("--rate", type=int, default=1,
                         help="Frequency of cycles to generate a token (in Uniformgenerator)")
-    parser.add_argument("--basic_num", type=int, default=80,
+    parser.add_argument("--basic_num", type=int, default=2000,
                         help="Number of requests generated at the first cycle")
     parser.add_argument("--gen_req_per_cyc", type=int, default=1,
                         help="requests generated in each cycle (UniformRandomGenerator)")
@@ -45,7 +45,7 @@ def parse_args():
     
     parser.add_argument("--max_prompt_len", type=int, default=4096,
                         help="maximum prompt length for generated requests")
-    parser.add_argument("--maximal_generation", type=int, default=80)
+    parser.add_argument("--maximal_generation", type=int, default=10000)
     
     parser.add_argument("--num_FFN", type=int, default=1,
                         help="number of FFN workers to create")
@@ -64,7 +64,8 @@ def parse_args():
         help="output file prefix for statistics json files"
     )
     
-    
+    parser.add_argument("--allow_exchange", action="store_true",
+                        help="Allow batches inside pipeline FFN to exchange when former ones are ready")
     
     return parser.parse_args()
 
@@ -78,7 +79,7 @@ def main():
     beta_A = args.beta_A
     beta_F = args.beta_F
     beta_T = args.beta_T
-
+    batch_size = args.batch_size
     unit_FFN_time = alpha_F * batch_size + beta_F
     
     num_servers = args.num_server
@@ -122,12 +123,19 @@ def main():
             maximal_generation = args.maximal_generation,
             basic_length=args.basic_num
         ) 
+    else:
+        raise NotImplementedError("Not Implemented Yet in generator.py")
 
     # 这里在修改FFN逻辑之后需要修改
-    FFN_workers: List[FFN] = []
+    FFN_workers = []
     num_FFN = args.num_FFN
     for FFN_id in range(num_FFN):
-        FFN_worker = FFN(FFN_id)
+        if args.FFN_type == 0 :
+            FFN_worker = FFN(FFN_id)
+        elif args.FFN_type == 3:
+            FFN_worker = dynamic_FFN(FFN_id, should_serve_num_batches= 0, allow_exchange=args.allow_exchange)
+        elif args.FFN_type == 4:
+            FFN_worker = dynamic_FFN(FFN_id, should_serve_num_batches=0, allow_exchange=args.allow_exchange)
         FFN_workers.append(FFN_worker)
 
     global_time = 0
@@ -216,6 +224,9 @@ def main():
         least_num_to_fill = args.num_batch * args.batch_size * args.num_server
         if args.basic_num < least_num_to_fill:
             raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
+        initial_reqs = generator.do_initial_generation()
+        for req in initial_reqs:
+            buffer.append(req)
         # 一开始要填满所有Batch， 至少需要生成这些request才能满足要求
         scheduler = PipelineScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
         # PipelineScheduler的初始匹配在构造函数中完成

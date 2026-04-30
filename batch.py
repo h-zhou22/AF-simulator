@@ -47,6 +47,9 @@ class Batch:
         # 需要被交换, 尚未完成交换，需要丢弃已经load尚在排队的FFN工作
         self.being_swapped = False
 
+        self.mapped_FFN_id = -1
+        self.FFN_level = -1
+
     def append_request(self, current_time,  request:Request):
         self.requests.append(request)
         request.start_processing(current_time, self.batch_id)
@@ -189,4 +192,7 @@ class Batch:
         # 在这种情况下重新传输到新的FFN_worker开始下一阶段的传输
             self.being_swapped = True
             self.A2F_transmission(current_time, alpha_T, beta_T)
-            
+    
+    def map_to_FFN(self, FFN_id, FFN_level):
+        self.mapped_FFN_id = FFN_id
+        self.FFN_level = FFN_level
