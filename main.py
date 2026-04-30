@@ -7,7 +7,7 @@ from stats import StatsCollector
 from request import Request
 from FFN import FFN
 from batch import Batch
-from scheduler import BasicScheduler, DynamicScheduler
+from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler
 from collections import deque
 
 def parse_args():
@@ -201,9 +201,24 @@ def main():
                     print("Batch status: ",stored_batches[j].status)
                     print("Batch current ending: ", stored_batches[j].current_ending)
     # Loop End For Single FFN cases
-    elif args.FFN_type == 3:  
+    elif args.FFN_type == 1:  
         scheduler = BasicScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F)
         scheduler.match_AF()
+        while finished_requests < args.total_request:
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                buffer.append(req)
+                req_inq += 1
+            scheduler.do_cycle_work(global_time)
+            finished_requests = stats.finished_request
+            global_time += 1
+    elif args.FFN_type == 3:
+        least_num_to_fill = args.num_batch * args.batch_size * args.num_server
+        if args.basic_num < least_num_to_fill:
+            raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
+        # 一开始要填满所有Batch， 至少需要生成这些request才能满足要求
+        scheduler = PipelineScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
+        # PipelineScheduler的初始匹配在构造函数中完成
         while finished_requests < args.total_request:
             newly_generated_reqs = generator.step(global_time)
             for req in newly_generated_reqs:
