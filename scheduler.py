@@ -386,6 +386,14 @@ class PipelineScheduler:
                 if not progress:   # 所有 level 都减不动了, 提前退出
                     break
         
+        # 根据最终的 AF_match 把所有 batch 接到对应 FFN 的流水线上
+# 此时 batch.matched_FFN_id 仍为 -1, construct_pipeline 会设它
+        for server in self.servers:
+            ffn_id = self.AF_match[server.server_id]
+            ffn_worker = self.FFN_workers[ffn_id]
+            for batch in server.batches.values():
+                ffn_worker.construct_pipeline(0, batch)
+
         for batch in self.stored_batches.values():
             print("Batch ID: ", batch.batch_id)
             print("Matched FFN worker: ", batch.mapped_FFN_id)

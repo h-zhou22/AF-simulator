@@ -17,8 +17,6 @@ class Batch:
         self.other_batch_FFN_unit_cost = 0
         self.FFN_unit_cost = FFN_unit_time
 
-        self.matched_FFN_id = -1
-
         self.status = 0
         # 0: Empty
         # 1: Attention processing, 2: FFN processing

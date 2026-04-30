@@ -304,16 +304,17 @@ class dynamic_FFN:
     # 向流水线中添加一个Batch
         if self.worker_id == 6:
             print("Appended Batch {} at time {}".format(batch.batch_id, current_time))
-        if batch.matched_FFN_id != -1:
-            raise ValueError(f"Batch {batch.batch_id} has already been matched to FFN {batch.matched_FFN_id}, cannot add to FFN {self.worker_id}")
-        batch.matched_FFN_id = self.worker_id
+        if batch.mapped_FFN_id != -1:
+            print("Current cycle: ", current_time)
+            raise ValueError(f"Batch {batch.batch_id} has already been matched to FFN {batch.mapped_FFN_id}, cannot add to FFN {self.worker_id}")
+        batch.mapped_FFN_id = self.worker_id
         self.buffer.add_batch(batch)
         self.served_num_batches += 1
 
     def modify_pipeline(self, current_time, batch_id):
         removed_node = self.buffer.map.get(batch_id)
         removed_batch = removed_node.batch
-        removed_batch.matched_FFN_id = -1
+        removed_batch.mapped_FFN_id = -1
 
         self.buffer.remove_batch(batch_id)
         self.served_num_batches -= 1
@@ -393,18 +394,18 @@ class dynamic_FFN:
                 f"Batch {old_batch_id} not found in FFN {self.worker_id} pipeline, cannot replace")
 
         # 此处有待商榷, 已经匹配的Batch仍可以被重新分配 
-        # if new_batch.matched_FFN_id != -1:
+        # if new_batch.mapped_FFN_id != -1:
         #     raise ValueError(
-        #         f"Batch {new_batch.batch_id} already matched to FFN {new_batch.matched_FFN_id}, "
+        #         f"Batch {new_batch.batch_id} already matched to FFN {new_batch.mapped_FFN_id}, "
         #         f"cannot place into FFN {self.worker_id}")
 
         # 不能取消id，否则先交换的batch的FFN_id会被覆盖
-        # old_node.batch.matched_FFN_id = -1
+        # old_node.batch.mapped_FFN_id = -1
 
         # 原位替换
         self.buffer.replace_batch_with(old_batch_id, new_batch,
                                     inherit_load_ready=inherit_load_ready)
 
         # 绑定新 batch
-        new_batch.matched_FFN_id = self.worker_id
+        new_batch.mapped_FFN_id = self.worker_id
         # served_num_batches / should_serve_batches 不变 (1-to-1 swap)
