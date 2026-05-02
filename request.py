@@ -2,11 +2,18 @@ import random
 #from stats import StatsCollector
 
 class Request:
-    def __init__(self, rid, arrival_time, length, max_possible_length, next_token_prob, seed=42):
+    def __init__(self, rid, arrival_time, length, max_possible_length, next_token_prob, seed=42, use_max_length_limit=True, 
+                 use_min_length_limit=False, min_length_limit = 4096, fixed_generation_round = False, fixed_generation_len = 20):
         self.rid = rid
         self.arrival = arrival_time
         self.max_possible_length = max_possible_length
         self.next_token_prob = next_token_prob
+
+        self.use_max_length_limit = use_max_length_limit
+        self.use_min_length_limit = use_min_length_limit
+        self.min_length_limit = min_length_limit
+        self.fixed_generation_round = fixed_generation_round
+        self.fixed_generation_len = fixed_generation_len
 
         self.original_len = length
         self.length = length  # current generated length
@@ -22,6 +29,8 @@ class Request:
         self.batch_id = None  # batch id the request is assigned to
         # Statistics
         self.cyc_used = 0  # total cycles used
+        # 通常为1，在启用Multitype_req的时候为1-4。其中1为普通, 2有最小输出长度要求, 3为超长, 4为20轮的超长
+        self.req_type = 1
 
     
     def do_new_round(self, current_time, stats):
@@ -29,15 +38,31 @@ class Request:
         self.length += 1
         self.rounds += 1
         self.proc_end_times.append(current_time)
-        if self.rng.random() < self.next_token_prob and self.length < self.max_possible_length:
+        if self.use_min_length_limit and self.length < self.min_length_limit:
+            return True
+        elif self.fixed_generation_round :
+            if self.rounds >= self.fixed_generation_len:
+                return True
+            else:
+                self.finish_request(current_time, stats)
+                return False
+        elif self.use_max_length_limit and self.length >= self.max_possible_length:
+            self.finish_request(current_time, stats)
+            return False
+        elif self.rng.random() < self.next_token_prob:
             return True
         else:
             # Finished request
-            self.completion_time = current_time
-            self.finished = True
+            self.finish_request(current_time, stats)
             # 统计各项数据，加入统计队列等待statistic worker处理
-            self.count_statistics(stats)
+            # print("Request ID: {}, Finished cycle: {}".format(self.rid, current_time))
             return False
+
+    def finish_request(self, current_time, stats):
+        self.completion_time = current_time
+        self.finished = True
+
+        self.count_statistics(stats)
 
     def start_processing(self, current_time, batch_id):
         self.start_processing_time = current_time

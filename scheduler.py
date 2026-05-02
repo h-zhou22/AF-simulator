@@ -4,7 +4,7 @@ from request import Request
 from batch import Batch
 from attention import Server
 from typing import List, Dict, Tuple
-from collections import defaultdict
+from collections import defaultdict, deque
 from FFN import FFN, dynamic_FFN
 from dataclasses import dataclass
 
@@ -24,7 +24,7 @@ class BasicScheduler:
         self.beta_T = beta_T
         self.alpha_F = alpha_F
         self.beta_F = beta_F
-        self.AF_match : Dict[int, int] # server_id -> FFN_id
+        self.AF_match : Dict[int, int] = {} # server_id -> FFN_id
 
         self.initially_full = initially_full
         if self.initially_full:
@@ -32,7 +32,7 @@ class BasicScheduler:
         self.match_AF()
 
     def do_initialize_filling(self):
-        if self.buffer().size() < self.num_batches*self.batch_size:
+        if self.buffer.size() < self.num_batches*self.batch_size:
             raise ValueError("Buffer size is smaller than total batch capacity")
         for batch in self.stored_batches.values():
             if batch.num_req < batch.batch_size:
@@ -44,12 +44,13 @@ class BasicScheduler:
         # match each server to a given FFN worker
         for i in range (self.num_servers):
             server = self.servers[i]
+            FFN_id = i % self.num_FFN
             FFN_worker = self.FFN_workers[i % self.num_FFN]
             server.FFN_worker = FFN_worker
-            self.AF_match[server.server_id] = FFN_worker.worker_id
+            self.AF_match[i] = FFN_id
 
     def do_cycle_work(self, current_time):
-            for server_id in len(self.servers):
+            for server_id in range(len(self.servers)):
             # 这里假定了server和FFN的ID是按照顺序排列的，后续Debug的时候需注意
                 server = self.servers[server_id]
                 FFN_server = self.FFN_workers[self.AF_match[server_id]]
@@ -155,6 +156,14 @@ class PipelineScheduler:
         # TODO: 初始化AF匹配策略以及后续AF匹配的动态调整
 
         self.do_initial_matching()
+        self.print_AF_matching_situation()
+        #raise NotImplementedError("Initial Matching testing")
+        
+    def print_AF_matching_situation(self):
+        print("AF matching situation:")
+        for server in self.servers:
+            print("Server: {}, Mapped FFN (real): {}, Matched FFN: {}".format(server.server_id, server.mapped_FFN_id, self.AF_match[server.server_id]))
+            print("Server Level: {}, Server weight: {}".format(server.FFN_level, server.weight))
 
     def do_initialize_filling(self):
         print("Buffer size, Need to fill",len(self.buffer),self.num_batches*self.batch_size)
@@ -223,26 +232,6 @@ class PipelineScheduler:
                 level_remainder += level_cnt
                 level_remain_list.extend(self.AF_ratio_list[level][:level_cnt])
         
-        # 下面使用多余的FFN为部分前面的FFN分担overhead的server
-        # if FFN_remaining > 0:
-        #     for level in reversed(range(self.max_AF_ratio + 1)):
-        #         modified_server_cnt = 0
-        #         if len(self.FFN_table[level]) <= level:
-        #             continue 
-        #         for level_iter_FFN in self.FFN_table[level]:
-        #             if FFN_remaining <= 0:
-        #                 break
-        #             additional_worker_id = self.num_FFN - FFN_remaining
-        #             additional_FFN = self.FFN_workers[additional_worker_id] 
-        #             if level_iter_FFN.mixed_server_level:
-        #                 continue
-                    
-        #             if modified_server_cnt >= level:
-        #                 additional_level_FFN = level_FFN(FFN_id= self.num_FFN - FFN_remaining, FFN_worker = self.FFN_workers[self.num_FFN - FFN_remaining], marked_cnt=level, level=level, mixed_server_level=False, server_cnt=level)
-        #             FFN_remaining -= 1
-        #         if FFN_remaining <= 0:
-        #             break
-        # 下面用多余的 FFN 为部分前面的 FFN 分担 overhead
         if FFN_remaining > 0:
             # 构造反向映射: FFN_id -> 它当前服务的 server_id 列表
             # （后面要从某个 FFN "让出"一个 server 给新 FFN）
@@ -397,7 +386,7 @@ class PipelineScheduler:
         for batch in self.stored_batches.values():
             print("Batch ID: ", batch.batch_id)
             print("Matched FFN worker: ", batch.mapped_FFN_id)
-            print("Matched FFN level: ", batch.FFN_level)
+            # print("Matched FFN level: ", batch.FFN_level)
 
     def update_AF_ratio_bounds(self):
         # 再计算恰好匹配的情况下需要的FFN worker的数量区间
@@ -430,8 +419,8 @@ class PipelineScheduler:
         self.Batch_FFN_unit_count.items(), key=lambda x: x[1], reverse=True)
 
         for server in self.servers:
-            self.server_FFN_unit_count[server.server_id] = server.compute_total_unit_cost(
-                self.alpha_A, self.beta_A)
+            server.update_FFN_level(self.alpha_A, self.beta_A)
+            self.server_FFN_unit_count[server.server_id] = server.weight
         self.server_FFN_unit_order = sorted(
             self.server_FFN_unit_count.items(), key=lambda x: x[1], reverse=True)
     
@@ -484,7 +473,7 @@ class PipelineScheduler:
         """交换两个 server 各自维护的两个 batch 所归属的 FFN.
         只负责交换,关于Batch交换后状态的维护需要额外的逻辑进行处理"""
         print("We Swap! Cycle: ",current_time)
-
+        raise NotImplementedError("Not Swap Has been applied! ")
         server_a = self.servers[server_id_a]
         server_b = self.servers[server_id_b]
         ffn_id_a = self.AF_match[server_id_a]
@@ -692,13 +681,63 @@ class PipelineScheduler:
         server.reactivate_batches(current_time, self.alpha_A, self.beta_A,
                                 self.alpha_T, self.beta_T)
 
+class BatchQueue:
+    def __init__(self, num_queues=10, num_workers=2):
+        self.num_queues = num_queues
+        self.queues = [deque() for _ in range(num_queues)]
+        #self.cycle = 0
+        self.num_workers = num_workers
+        self.batch_id = 0
 
+    def add_batch(self, residue: int, batch:Batch):
+        """在当前cycle加入新Bintatch"""
+        target = (self.cycle + residue) % self.num_queues
+        self.queues[target].append(batch)
+
+    #拿出一个Batch
+    def worker_step(self, FFN_worker: dynamic_FFN, current_time: int):
+        """worker从 i%10 开始依次取"""
+        # 队列中是否还有其他Batch
+        flag = False
+        for w in range(self.num_workers):
+            
+            for offset in range(self.num_queues):
+                idx = (current_time + offset) % self.num_queues
+                if self.queues[idx]:
+                    batch = self.queues[idx].popleft()
+                    FFN_worker.load_batch(current_time, batch)
+                    #print(f"Worker {w} takes Batch {batch.id} from Q[{idx}]")
+                    flag = True
+                    break
+        return flag
     
+    # 清空时间队列里面剩余的Batch, 加入下一时间队列
+    def migrate(self, current_time: int):
+        """Q[i] → Q[i+1] 队首"""
+        i = current_time % self.num_queues
+        next_i = (i + 1) % self.num_queues
+
+        remaining = list(self.queues[i])
+        self.queues[i].clear()
+
+        # 保持顺序插入队首
+        for batch in reversed(remaining):
+            self.queues[next_i].appendleft(batch)
+
+    def print_status(self, current_time):
+        print(f"Cycle {current_time}:")
+        for i, q in enumerate(self.queues):
+            print(f"Q[{i}]: {len(q)}")
 
 class DynamicScheduler:
-    def __init__(self, servers:List[Server], FFN_workers:List[dynamic_FFN], stats, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F):
+# AF之间固定匹配不再更改
+    def __init__(self, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
         self.servers = servers
+        self.buffer = buffer
+        self.stored_batches = stored_batches
+        self.num_servers = len(servers)
         self.FFN_workers = FFN_workers
+        self.num_FFN = len(FFN_workers)
         self.stats = stats
         self.alpha_A = alpha_A
         self.beta_A = beta_A
@@ -706,3 +745,49 @@ class DynamicScheduler:
         self.beta_T = beta_T
         self.alpha_F = alpha_F
         self.beta_F = beta_F
+        self.AF_match : Dict[int, int] = {} # server_id -> FFN_id
+
+        self.initially_full = initially_full
+        if self.initially_full:
+            self.do_initialize_filling()
+        
+
+    def do_initialize_filling(self):
+        if self.buffer.size() < self.num_batches*self.batch_size:
+            raise ValueError("Buffer size is smaller than total batch capacity")
+        for batch in self.stored_batches.values():
+            if batch.num_req < batch.batch_size:
+                request = self.buffer.pop()
+                batch.append_request(0, request)
+                # load_request加入之后会立刻开始处理, 所以初始化都用append
+
+    def do_cycle_work(self, current_time):
+            for server_id in range(len(self.servers)):
+            # 这里假定了server和FFN的ID是按照顺序排列的，后续Debug的时候需注意
+                server = self.servers[server_id]
+                FFN_server = self.FFN_workers[self.AF_match[server_id]]
+                server.cycle_work(current_time, self.stats, FFN_server, self.alpha_T, self.beta_T)
+
+            available_batches : List[Tuple[int, int, int, int]] = []
+            for server in self.servers:
+                extend_batches = server.find_available_batch()
+                available_batches.extend(extend_batches)
+
+            while available_batches and self.buffer:
+                request = self.buffer.pop()
+                best_batch_info = min(available_batches)
+                batch_id0 = best_batch_info[2]
+                server_id0 = best_batch_info[3]
+                best_batch = self.stored_batches[batch_id0]
+                target_server = self.servers[server_id0]
+                target_server.load_request_to_batch(current_time, best_batch_info[2], request)
+                available_batches.remove(best_batch_info)
+                if best_batch.has_free_slot(current_time):
+                    info0, info1 = best_batch.updated_info(current_time=current_time)
+                    new_info = (info0, info1, batch_id0, server_id0)
+                    available_batches.append(new_info)
+            
+            for server in self.servers:
+                server.attention_work(current_time, self.alpha_A, self.beta_A)
+            for FFN_worker in self.FFN_workers:
+                FFN_worker.cycle_work(current_time, self.alpha_F, self.beta_F)

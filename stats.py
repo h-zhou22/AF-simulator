@@ -39,7 +39,9 @@ class StatsCollector:
         - pause time due to eviction
         - processing time per round
         """
-
+        record_print = True
+        if record_print:
+            print("Finished request: {}, Type:{}, Cycle:{}".format(self.finished_request, req.req_type, req.completion_time))
         # -------- 基本完成计数 --------
         #print("Next token probability:", req.next_token_prob)
         self.finished_request += 1
@@ -105,11 +107,16 @@ class StatsCollector:
             for round_cost in batch.round_cost:
                 rounds += 1
                 tot_cost += round_cost
+        if rounds == 0:
+            batch.print_info()
+            #raise ValueError("rounds == 0") 
+            
+            return    
         avg_cost = tot_cost/rounds
-
+        
         self.batch_info.append(
             {
-                "batch_id": batch.bids,
+                "batch_id": batch.batch_id,
                 "served_requests": batch.ever_served_request,
                 "Acost": batch.Acost,
                 "Fcost": batch.Fcost,
