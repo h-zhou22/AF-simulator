@@ -38,36 +38,42 @@ class BatchNode:
         self.batch_id = batch_id
         self.batch = batch
         self.load_ready = False # 是否完成了此轮的前序工作做好了FFN的准备
-        self.next = None
-        self.prev = None
+        self.net :BatchNode = None
+        self.prev :BatchNode = None
 
 class BatchList:
     def __init__(self):
-        self.head = None
-        self.tail = None
-        self.current = None
+        self.head:BatchNode = None
+        self.tail:BatchNode = None
+        self.current:BatchNode = None
         self.batch_count = 0
         self.map = {}
     
     def print_all_batches(self):
     # For debug usage, print all the batches loaded
         print("Total batch count: ",self.batch_count)
-        iter_node = self.head
-        while iter_node != self.tail:
+        
+        head_id = self.head.batch_id
+        
+        print("HeadBatch ID: ", head_id)
+        iter_node = self.head.net
+        #iter_node = iter_node.net
+        while iter_node.batch_id != head_id:
             print("Batch ID: ", iter_node.batch_id)
-            iter_node = iter_node.next
+            iter_node = iter_node.net
 
     def add_batch(self, batch: Batch):
         node = BatchNode(batch.batch_id, batch)
-
+        
         if self.head is None:
             self.head = node
             self.tail = node
-            node.next = node
+            node.net = node
             node.prev = node
         else:
-            node.next = self.head
-            self.tail.next = node
+            node.net = self.head
+            self.head.prev = node
+            self.tail.net = node
             node.prev = self.tail
             self.tail = node
 
@@ -79,6 +85,7 @@ class BatchList:
         self.batch_count += 1
 
     def remove_batch(self, batch_id):
+        #raise NotImplementedError("remove_batch is not implemented yet")
         node = self.map.get(batch_id)
         if node is None:
             raise ValueError(f"Batch {batch_id} not found in BatchList, cannot remove")
@@ -88,15 +95,15 @@ class BatchList:
             self.tail = None
             self.current = None
         else:
-            node.prev.next = node.next
-            node.next.prev = node.prev
+            node.prev.net = node.net
+            node.net.prev = node.prev
 
             if node == self.head:
-                self.head = node.next
+                self.head = node.net
             if node == self.tail:
                 self.tail = node.prev
             if node == self.current:
-                self.current = node.next
+                self.current = node.net
 
         del self.map[batch_id]
         self.batch_count -= 1
@@ -105,18 +112,18 @@ class BatchList:
     # 完成FFN工作后将ready调整成False
     def finish_current_work(self):
         self.current.load_ready = False
-        self.current = self.current.next
+        self.current = self.current.net
 
     def exchange_current_with_next(self):
-        if self.current is None or self.current.next is None or self.current.next is self.current:
+        if self.current is None or self.current.net is None or self.current.net is self.current:
             raise ValueError("Current node or next node is None/self, cannot exchange")
 
         prev_node    = self.current.prev
         current_node = self.current
-        next_node    = current_node.next
-        nn_node      = next_node.next  # 新增: 必须保留 next.next, 否则会断链
+        next_node    = current_node.net
+        nn_node      = next_node.net  # 新增: 必须保留 next.net, 否则会断链
 
-        # 二节点环 (A == next.next, prev_node 其实就是 next_node) 的退化情况
+        # 二节点环 (A == next.net, prev_node 其实就是 next_node) 的退化情况
         if nn_node is current_node:
             # 双向环只有 current 和 next, 拓扑上 swap 后等价于原图,
             # 仅 head/tail/current 标记需要调整
@@ -128,11 +135,11 @@ class BatchList:
             return
 
         # 通用情况: A <-> B <-> C <-> D  =>  A <-> C <-> B <-> D
-        prev_node.next   = next_node
+        prev_node.net   = next_node
         next_node.prev   = prev_node
-        next_node.next   = current_node
+        next_node.net   = current_node
         current_node.prev = next_node
-        current_node.next = nn_node      # 新增
+        current_node.net = nn_node      # 新增
         nn_node.prev      = current_node # 新增
 
         if self.head is current_node:
@@ -153,7 +160,7 @@ class BatchList:
 
         prev_node    = self.current.prev
         current_node = self.current
-        next_node    = current_node.next
+        next_node    = current_node.net
         pp_node      = prev_node.prev   # 新增: 保留 prev.prev
 
         if pp_node is current_node:
@@ -166,11 +173,11 @@ class BatchList:
             return
 
         # X <-> P <-> B <-> N  =>  X <-> B <-> P <-> N
-        pp_node.next      = current_node
+        pp_node.net      = current_node
         current_node.prev = pp_node
-        current_node.next = prev_node
+        current_node.net = prev_node
         prev_node.prev    = current_node
-        prev_node.next    = next_node     # 新增
+        prev_node.net    = next_node     # 新增
         next_node.prev    = prev_node     # 新增
 
         if self.head is current_node:
@@ -197,7 +204,7 @@ class BatchList:
             raise ValueError(f"Batch {batch_id} not found in BatchList, cannot exchange")
 
         prev_node = self.current.prev
-        next_node = self.current.next
+        next_node = self.current.net
         if next_node == target_node:
             self.exchange_current_with_next()
             return
@@ -208,13 +215,14 @@ class BatchList:
         
         if target_node == self.current:
             return
+        #raise NotImplementedError("Exchange current with given node is not implemented")
 
         current_node = self.current
 
         # 1) 把 target 从原位置摘出
         t_prev = target_node.prev
-        t_next = target_node.next
-        t_prev.next = t_next
+        t_next = target_node.net
+        t_prev.net = t_next
         t_next.prev = t_prev
         if self.head is target_node:
             self.head = t_next
@@ -223,9 +231,9 @@ class BatchList:
 
         # 2) 插入到 current 前面: ... <-> c_prev <-> target <-> current <-> ...
         c_prev = current_node.prev
-        c_prev.next = target_node
+        c_prev.net = target_node
         target_node.prev = c_prev
-        target_node.next = current_node
+        target_node.net = current_node
         current_node.prev = target_node
 
         # 3) 若 current 原本是 head, 现在 target 排到了它前面, target 成为新 head
@@ -255,16 +263,16 @@ class BatchList:
 
         # 单节点环
         if old_node is self.head and old_node is self.tail:
-            new_node.next = new_node
+            new_node.net = new_node
             new_node.prev = new_node
             self.head = new_node
             self.tail = new_node
         else:
             prev_node = old_node.prev
-            next_node = old_node.next
+            next_node = old_node.net
             new_node.prev = prev_node
-            new_node.next = next_node
-            prev_node.next = new_node
+            new_node.net = next_node
+            prev_node.net = new_node
             next_node.prev = new_node
             if self.head is old_node:
                 self.head = new_node
@@ -302,13 +310,14 @@ class dynamic_FFN:
     
     def construct_pipeline(self, current_time, batch:Batch):
     # 向流水线中添加一个Batch
-        if self.worker_id == 6:
-            print("Appended Batch {} at time {}".format(batch.batch_id, current_time))
+        # if self.worker_id == 6:
+        #     print("Appended Batch {} at time {}".format(batch.batch_id, current_time))
         if batch.mapped_FFN_id != -1:
             print("Current cycle: ", current_time)
             raise ValueError(f"Batch {batch.batch_id} has already been matched to FFN {batch.mapped_FFN_id}, cannot add to FFN {self.worker_id}")
         batch.mapped_FFN_id = self.worker_id
         self.buffer.add_batch(batch)
+        print("Batch ID: {}, Mapped to FFN ID: {}".format(batch.batch_id, self.worker_id))
         self.served_num_batches += 1
 
     def modify_pipeline(self, current_time, batch_id):
@@ -318,7 +327,10 @@ class dynamic_FFN:
 
         self.buffer.remove_batch(batch_id)
         self.served_num_batches -= 1
-
+    
+    def debug_print_pipeline(self):
+        print("FFN ID: ", self.worker_id)
+        self.buffer.print_all_batches()
     def load_batch(self, current_time, batch:Batch):
         node = self.buffer.map.get(batch.batch_id)
         if node is None:
@@ -360,8 +372,9 @@ class dynamic_FFN:
                     self.buffer.finish_current_work()
                     
                 else:
+                    
                     # 寻找下一个就绪的Node
-                    next_node = self.buffer.current.next
+                    next_node = self.buffer.current.net
                     find_ready = False
                     while next_node != self.buffer.current:
                         if next_node.load_ready:
@@ -369,14 +382,15 @@ class dynamic_FFN:
                             self.buffer.exchange_current_with_given(next_node.batch_id)
                             find_ready = True
                             break
-                        next_node = next_node.next
+                        next_node = next_node.net
                     if find_ready:
-                        
+                        #raise NotImplementedError("Exchange logic not implemented yet")
                         self.processing_batch_id = self.buffer.current.batch_id
                         self.current_busy = True
                         self.current_ending = self.buffer.current.batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
                         # 在开始处理时就更改Buffer的状态
                         self.buffer.finish_current_work()
+
     def replace_batch(self, current_time, old_batch_id, new_batch: Batch,
                   inherit_load_ready: bool = False):
         """用 new_batch 替换 pipeline 里 old_batch_id 对应的 batch, 保持其在流水线中的位置.
@@ -384,6 +398,7 @@ class dynamic_FFN:
 - status==2 (in-flight): old_batch 通过 current_ending 时间戳完成当前轮 FFN 工作,
   new_batch 占据其 pipeline 槽位等待下一轮. 其实也没有太大影响,正常load即可
 - status==6 (已 load 但未开始): 由 Attention 侧负责丢弃当前轮 FFN 工作并重做 A2F.
+- status==4 (已传输但尚未到达): 由 Attention 侧负责丢弃当前轮 FFN 工作并重做 A2F.
 - 其他状态: 仅做节点身份替换.
 
 调用方约定: 通常仅由 swap_batches_between_ffns 调用, 后者保证两边对换原子完成.

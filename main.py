@@ -1,6 +1,6 @@
 import math
 import argparse
-from generator import UniformGenerator, UniformRandomGenerator
+from generator import UniformGenerator, UniformRandomGenerator, MultitypeRandomGenerator
 from attention import Server
 from typing import Dict, List, Tuple
 from stats import StatsCollector
@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument("--batch_max_length", type=int, default=65536,
                         help="maximal allowed tokens inneach batch")
     
-    parser.add_argument("--next_token_prob", type=float, default=0.95,
+    parser.add_argument("--next_token_prob", type=float, default=0.995,
                         help="Probability for next token during pipeline.")
 
     parser.add_argument("--gen_prob", type=float, default=0.001,
@@ -123,6 +123,16 @@ def main():
             maximal_generation = args.maximal_generation,
             basic_length=args.basic_num
         ) 
+    elif args.generator == 2:
+        generator = MultitypeRandomGenerator(
+            next_token_prob= args.next_token_prob,
+            seed= generator_seed,
+            rate=args.gen_prob,
+            max_length=args.max_prompt_len,
+            num_per_cyc= args.gen_req_per_cyc,
+            maximal_generation = args.maximal_generation,
+            basic_length=args.basic_num
+        )
     else:
         raise NotImplementedError("Not Implemented Yet in generator.py")
 
@@ -132,6 +142,8 @@ def main():
     for FFN_id in range(num_FFN):
         if args.FFN_type == 0 :
             FFN_worker = FFN(FFN_id)
+        elif args.FFN_type == 1:
+            FFN_worker =FFN(FFN_id)
         elif args.FFN_type == 3:
             FFN_worker = dynamic_FFN(FFN_id, should_serve_num_batches= 0, allow_exchange=args.allow_exchange)
         elif args.FFN_type == 4:
@@ -164,13 +176,17 @@ def main():
             for server in servers:
                 extend_batches = server.find_available_batch()
                 available_batches.extend(extend_batches)
-
+                # [num_req, batch_len, bid, sid]
+            if test_print:
+                print("Cycle: ", global_time)
+                print("Finished req count: ",finished_requests)
+                print("Available batches:{}, Buffer size: {}".format(len(available_batches), len(buffer)))
             while available_batches and buffer:
-                #print("Here 154")
+                
                 if test_print:
                     for batch1 in available_batches:
                         print("Batch info ",batch1)
-                    print("Buufer size: ",len(buffer))
+                    print("Buffer size: ",len(buffer))
                 request = buffer.pop()
                 best_batch_info = min(available_batches)
                 batch_id0 = best_batch_info[2]
@@ -180,7 +196,7 @@ def main():
                 target_server.load_request_to_batch(global_time, best_batch_info[2], request)
                 available_batches.remove(best_batch_info)
                 if best_batch.has_free_slot(global_time):
-                    info0, info1 = best_batch.update_info(current_time=global_time)
+                    info0, info1 = best_batch.updated_info(current_time=global_time)
                     new_info = (info0, info1, batch_id0, server_id0)
                     available_batches.append(new_info)
 
@@ -239,7 +255,13 @@ def main():
             finished_requests = stats.finished_request
             global_time += 1
 
+    main_print = False
     for batch_id in range(len(stored_batches)):
+        if main_print:
+            problem_FFN_id = stored_batches[batch_id].mapped_FFN_id
+            problem_FFN_worker=FFN_workers[problem_FFN_id]
+            problem_FFN_worker.debug_print_pipeline()
+            # 打印疑似出现问题的FFN的流水线信息
         stats.record_batch(stored_batches[batch_id])
 
     print("Experiment finished.")

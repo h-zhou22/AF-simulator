@@ -4,7 +4,7 @@ from request import Request
 from typing import List, Dict, Tuple
 
 class Batch:
-    def __init__(self, batch_id, batch_size, FFN_unit_time,  use_length_limit=False, length_limit=0):
+    def __init__(self, batch_id, batch_size, FFN_unit_time,  use_length_limit=False, length_limit=0, dynamic_matching = False):
         self.batch_id = batch_id  # List of request IDs in the batch
         self.requests :List[Request] = []  # Requests in the batch
         self.batch_size = batch_size # Maximal number of requests allowed
@@ -47,6 +47,8 @@ class Batch:
 
         self.mapped_FFN_id = -1
         self.FFN_level = -1
+
+        self.dynamic_matching = dynamic_matching
 
     def append_request(self, current_time,  request:Request):
         self.requests.append(request)
@@ -106,6 +108,7 @@ class Batch:
             current_ending = current_ending + current_cost
             self.current_ending = current_ending
 
+        #print("Fcost: ",current_cost)
         self.Fcost.append(current_cost)
 
         return self.current_ending
@@ -194,3 +197,19 @@ class Batch:
     def map_to_FFN(self, FFN_id, FFN_level):
         self.mapped_FFN_id = FFN_id
         self.FFN_level = FFN_level
+
+    def print_info(self):
+        print("Batch ID: ", self.batch_id)
+        print("Status: ", self.status)
+        print("Num_req: ", self.num_req)
+        print("Ever served requests: ", self.ever_served_request)
+        print("Length: ", self.length)
+        print("Length: ", self.length)
+        
+        print("Acost: ", self.Acost)
+        print("Fcost: ", self.Fcost)
+        print("A_finish: ", self.A_finish)
+        print("F_finish: ", self.F_finish)
+        print("A_arrival: ", self.A_arrival)
+        print("F_arrival: ", self.F_arrival)
+        print("round_cost: ", self.round_cost)

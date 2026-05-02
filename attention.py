@@ -5,7 +5,7 @@ from batch import Batch
 from typing import List, Dict, Tuple
 
 class Server:
-    def __init__(self, server_id, num_batches, batch_size, unit_FFN_time, batches: dict[int,Batch]):
+    def __init__(self, server_id, num_batches, batch_size, unit_FFN_time, batches: dict[int,Batch], dynamic_matching = False):
         self.num_batches = num_batches
         self.batches = batches
         self.batch_size = batch_size
@@ -27,6 +27,8 @@ class Server:
         self.first_finished_batch_id = -1
         #self.ceiling = True
 
+        self.dynamic_matching = dynamic_matching
+
     def load_request_to_batch(self, current_time, batch_id, request:Request):
         self.batches[batch_id].load_request(current_time, request)
 
@@ -39,7 +41,7 @@ class Server:
                         continue
                 available_batches.append((batch.num_req, batch.length, batch_id, self.server_id))
         return available_batches
-    
+
     def cycle_work(self, current_time, stats, FFN_worker, alpha_T, beta_T):
         for batch_id, batch in self.batches.items():
             # if batch.status == 5: # Waiting for allocation in attention
@@ -115,6 +117,7 @@ class Server:
         #     batch.map_to_FFN(FFN_id, FFN_level)
 
     def update_FFN_level(self, alpha_A, beta_A):
+        #print("Unit FFN cost: {}, Attention cost: {}".format(self.unit_FFN_time, self.compute_total_cost(alpha_A, beta_A)))
         self.weight = self.compute_total_unit_cost(alpha_A, beta_A)
 
     def reactivate_batches(self, current_time, alpha_A, beta_A, alpha_T, beta_T):
