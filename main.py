@@ -96,9 +96,12 @@ def main():
         for i in range(num_batch):
             new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
             batches[batch_id] =  new_batch
+            new_batch.server_id = idx
             stored_batches[batch_id] = new_batch
             batch_id += 1
         server = Server(idx, args.num_batch, batch_size, unit_FFN_time, batches)
+        if args.FFN_type == 4:
+            server.dynamic_matching = True
         servers.append(server)
 
     generator_seed = 4
@@ -147,7 +150,7 @@ def main():
         elif args.FFN_type == 3:
             FFN_worker = dynamic_FFN(FFN_id, should_serve_num_batches= 0, allow_exchange=args.allow_exchange)
         elif args.FFN_type == 4:
-            FFN_worker = dynamic_FFN(FFN_id, should_serve_num_batches=0, allow_exchange=args.allow_exchange)
+            FFN_worker = FFN(FFN_id)
         FFN_workers.append(FFN_worker)
 
     global_time = 0
@@ -254,6 +257,23 @@ def main():
             scheduler.do_cycle_work(global_time)
             finished_requests = stats.finished_request
             global_time += 1
+    elif args.FFN_type == 4:
+        least_num_to_fill = args.num_batch * args.batch_size * args.num_server
+        if args.basic_num < least_num_to_fill:
+            raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
+        initial_reqs = generator.do_initial_generation()
+        for req in initial_reqs:
+            buffer.append(req)
+        scheduler = DynamicScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
+        
+        while finished_requests < args.total_request:
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                buffer.append(req)
+                req_inq += 1
+            scheduler.do_cycle_work(global_time)
+            finished_requests = stats.finished_request
+            global_time += 1 
 
     main_print = False
     for batch_id in range(len(stored_batches)):

@@ -42,7 +42,7 @@ class Server:
                 available_batches.append((batch.num_req, batch.length, batch_id, self.server_id))
         return available_batches
 
-    def cycle_work(self, current_time, stats, FFN_worker, alpha_T, beta_T):
+    def cycle_work(self, current_time, stats, FFN_worker=None, alpha_T=0, beta_T=1):
         for batch_id, batch in self.batches.items():
             # if batch.status == 5: # Waiting for allocation in attention
             #     if self.current_busy == False:
@@ -54,6 +54,8 @@ class Server:
                     batch.F2A_transmission_end(current_time)
                     batch.do_new_round(current_time, stats)  # stats is None for now
             elif batch.status == 4: # Waiting for allocation in FFN
+                if self.dynamic_matching:
+                    continue
                 if current_time >= batch.current_ending:
                     batch.A2F_transmission_end(current_time)
                     FFN_worker.load_batch(current_time, batch)
@@ -96,6 +98,8 @@ class Server:
             other_batch = self.batches[batch_id]
             tot_len += other_batch.length
         batch.other_batch_cost = alpha_A*tot_len + beta_A
+        """注意,这里考虑每个server只同时维护两个Batch"""
+        batch.other_batch_FFN_unit_cost = batch.other_batch_cost / self.unit_FFN_time
 
     def compute_total_cost(self, alpha_A, beta_A):
         # return the total cost of all batches in the current server

@@ -6,6 +6,7 @@ from typing import List, Dict, Tuple
 class Batch:
     def __init__(self, batch_id, batch_size, FFN_unit_time,  use_length_limit=False, length_limit=0, dynamic_matching = False):
         self.batch_id = batch_id  # List of request IDs in the batch
+        self.server_id =  -1
         self.requests :List[Request] = []  # Requests in the batch
         self.batch_size = batch_size # Maximal number of requests allowed
         self.length = 0
@@ -14,7 +15,9 @@ class Batch:
         self.length_limit = length_limit
         self.ever_served_request = 0
 
+        self.other_batch_cost = 0
         self.other_batch_FFN_unit_cost = 0
+        
         self.FFN_unit_cost = FFN_unit_time
 
         self.status = 0
