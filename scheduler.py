@@ -6,11 +6,12 @@ from attention import Server
 from typing import List, Dict, Tuple
 from collections import defaultdict, deque
 from FFN import FFN, dynamic_FFN
+from arranger import GlobalArranger, GreedyArranger, MultitypeArranger
 from dataclasses import dataclass
 
 class BasicScheduler:
 # AF之间固定匹配不再更改
-    def __init__(self, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
+    def __init__(self, arranger, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
         self.servers = servers
         self.buffer = buffer
         self.stored_batches = stored_batches
@@ -27,17 +28,19 @@ class BasicScheduler:
         self.AF_match : Dict[int, int] = {} # server_id -> FFN_id
 
         self.initially_full = initially_full
-        if self.initially_full:
-            self.do_initialize_filling()
+        # if self.initially_full:
+        #     self.do_initialize_filling()
         self.match_AF()
 
-    def do_initialize_filling(self):
-        if self.buffer.size() < self.num_batches*self.batch_size:
-            raise ValueError("Buffer size is smaller than total batch capacity")
-        for batch in self.stored_batches.values():
-            if batch.num_req < batch.batch_size:
-                request = self.buffer.pop()
-                batch.append_request(0, request)
+        self.arranger = arranger
+
+    # def do_initialize_filling(self):
+    #     if self.buffer.size() < self.num_batches*self.batch_size:
+    #         raise ValueError("Buffer size is smaller than total batch capacity")
+    #     for batch in self.stored_batches.values():
+    #         if batch.num_req < batch.batch_size:
+    #             request = self.buffer.pop()
+    #             batch.append_request(0, request)
                 # load_request加入之后会立刻开始处理, 所以初始化都用append
 
     def match_AF(self):
@@ -61,19 +64,20 @@ class BasicScheduler:
                 extend_batches = server.find_available_batch()
                 available_batches.extend(extend_batches)
 
-            while available_batches and self.buffer:
-                request = self.buffer.pop()
-                best_batch_info = min(available_batches)
-                batch_id0 = best_batch_info[2]
-                server_id0 = best_batch_info[3]
-                best_batch = self.stored_batches[batch_id0]
-                target_server = self.servers[server_id0]
-                target_server.load_request_to_batch(current_time, best_batch_info[2], request)
-                available_batches.remove(best_batch_info)
-                if best_batch.has_free_slot(current_time):
-                    info0, info1 = best_batch.updated_info(current_time=current_time)
-                    new_info = (info0, info1, batch_id0, server_id0)
-                    available_batches.append(new_info)
+            self.arranger.arrange_requests(current_time)
+            # while available_batches and self.buffer:
+            #     request = self.buffer.pop()
+            #     best_batch_info = min(available_batches)
+            #     batch_id0 = best_batch_info[2]
+            #     server_id0 = best_batch_info[3]
+            #     best_batch = self.stored_batches[batch_id0]
+            #     target_server = self.servers[server_id0]
+            #     target_server.load_request_to_batch(current_time, best_batch_info[2], request)
+            #     available_batches.remove(best_batch_info)
+            #     if best_batch.has_free_slot(current_time):
+            #         info0, info1 = best_batch.updated_info(current_time=current_time)
+            #         new_info = (info0, info1, batch_id0, server_id0)
+            #         available_batches.append(new_info)
             
             for server in self.servers:
                 server.attention_work(current_time, self.alpha_A, self.beta_A)
@@ -109,8 +113,9 @@ class level_FFN:
 
 class PipelineScheduler:
 # AF之间存在固定匹配，可能会被动态修改
-    def __init__(self, servers:List[Server], FFN_workers:List[dynamic_FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
+    def __init__(self, arranger, servers:List[Server], FFN_workers:List[dynamic_FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
         self.servers = servers
+        self.arranger = arranger
         self.batch_size = servers[0].batch_size
         self.buffer = buffer
         self.stored_batches = stored_batches
@@ -151,8 +156,8 @@ class PipelineScheduler:
 
         self.initially_full = initially_full
         # 先把所有的Attention装满
-        if self.initially_full:
-            self.do_initialize_filling()
+        # if self.initially_full:
+        #     self.do_initialize_filling()
         # TODO: 初始化AF匹配策略以及后续AF匹配的动态调整
 
         self.do_initial_matching()
@@ -165,16 +170,16 @@ class PipelineScheduler:
             print("Server: {}, Mapped FFN (real): {}, Matched FFN: {}".format(server.server_id, server.mapped_FFN_id, self.AF_match[server.server_id]))
             print("Server Level: {}, Server weight: {}".format(server.FFN_level, server.weight))
 
-    def do_initialize_filling(self):
-        print("Buffer size, Need to fill",len(self.buffer),self.num_batches*self.batch_size)
-        if len(self.buffer) < self.num_batches*self.batch_size:
-            raise ValueError("Buffer size is smaller than total batch capacity")
-        for batch in self.stored_batches.values():
-            while batch.num_req < batch.batch_size:
-                request = self.buffer.pop()
-                batch.append_request(0, request)
-                # load_request加入之后会立刻开始处理, 所以初始化都用append
-            batch.start_processing_from_empty(0)
+    # def do_initialize_filling(self):
+    #     print("Buffer size, Need to fill",len(self.buffer),self.num_batches*self.batch_size)
+    #     if len(self.buffer) < self.num_batches*self.batch_size:
+    #         raise ValueError("Buffer size is smaller than total batch capacity")
+    #     for batch in self.stored_batches.values():
+    #         while batch.num_req < batch.batch_size:
+    #             request = self.buffer.pop()
+    #             batch.append_request(0, request)
+    #             # load_request加入之后会立刻开始处理, 所以初始化都用append
+    #         batch.start_processing_from_empty(0)
         
     def do_initial_matching(self):
         # 先记录初始时AF用时比例分配初始资源
@@ -437,19 +442,20 @@ class PipelineScheduler:
                 extend_batches = server.find_available_batch()
                 available_batches.extend(extend_batches)
 
-            while available_batches and self.buffer:
-                request = self.buffer.pop()
-                best_batch_info = min(available_batches)
-                batch_id0 = best_batch_info[2]
-                server_id0 = best_batch_info[3]
-                best_batch = self.stored_batches[batch_id0]
-                target_server = self.servers[server_id0]
-                target_server.load_request_to_batch(current_time, best_batch_info[2], request)
-                available_batches.remove(best_batch_info)
-                if best_batch.has_free_slot(current_time):
-                    info0, info1 = best_batch.updated_info(current_time=current_time)
-                    new_info = (info0, info1, batch_id0, server_id0)
-                    available_batches.append(new_info)
+            self.arranger.arrange_requests(current_time)
+            # while available_batches and self.buffer:
+            #     request = self.buffer.pop()
+            #     best_batch_info = min(available_batches)
+            #     batch_id0 = best_batch_info[2]
+            #     server_id0 = best_batch_info[3]
+            #     best_batch = self.stored_batches[batch_id0]
+            #     target_server = self.servers[server_id0]
+            #     target_server.load_request_to_batch(current_time, best_batch_info[2], request)
+            #     available_batches.remove(best_batch_info)
+            #     if best_batch.has_free_slot(current_time):
+            #         info0, info1 = best_batch.updated_info(current_time=current_time)
+            #         new_info = (info0, info1, batch_id0, server_id0)
+            #         available_batches.append(new_info)
             
             # 在free slot被填补之后，关注各个attention以及各个Batch的大小变化
             for server in self.servers:
@@ -736,8 +742,9 @@ class BatchQueue:
 
 class DynamicScheduler:
 # AF之间固定匹配不再更改
-    def __init__(self, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
+    def __init__(self, arranger, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
         self.servers = servers
+        self.arranger = arranger
         self.buffer = buffer
         self.stored_batches = stored_batches
         self.num_servers = len(servers)
@@ -754,19 +761,19 @@ class DynamicScheduler:
         self.beta_F = beta_F
         #self.AF_match : Dict[int, int] = {} # server_id -> FFN_id
 
-        self.initially_full = initially_full
-        if self.initially_full:
-            self.do_initialize_filling()
+        # self.initially_full = initially_full
+        # if self.initially_full:
+        #     self.do_initialize_filling()
         
         self.batch_queue = BatchQueue(num_queues=10)
 
-    def do_initialize_filling(self):
-        if len(self.buffer) < self.num_batches*self.batch_size:
-            raise ValueError("Buffer size is smaller than total batch capacity")
-        for batch in self.stored_batches.values():
-            if batch.num_req < batch.batch_size:
-                request = self.buffer.pop()
-                batch.append_request(0, request)
+    # def do_initialize_filling(self):
+    #     if len(self.buffer) < self.num_batches*self.batch_size:
+    #         raise ValueError("Buffer size is smaller than total batch capacity")
+    #     for batch in self.stored_batches.values():
+    #         if batch.num_req < batch.batch_size:
+    #             request = self.buffer.pop()
+    #             batch.append_request(0, request)
                 # load_request加入之后会立刻开始处理, 所以初始化都用append
 
     def do_cycle_work(self, current_time):
@@ -783,19 +790,20 @@ class DynamicScheduler:
                 extend_batches = server.find_available_batch()
                 available_batches.extend(extend_batches)
 
-            while available_batches and self.buffer:
-                request = self.buffer.pop()
-                best_batch_info = min(available_batches)
-                batch_id0 = best_batch_info[2]
-                server_id0 = best_batch_info[3]
-                best_batch = self.stored_batches[batch_id0]
-                target_server = self.servers[server_id0]
-                target_server.load_request_to_batch(current_time, best_batch_info[2], request)
-                available_batches.remove(best_batch_info)
-                if best_batch.has_free_slot(current_time):
-                    info0, info1 = best_batch.updated_info(current_time=current_time)
-                    new_info = (info0, info1, batch_id0, server_id0)
-                    available_batches.append(new_info)
+            self.arranger.arrange_requests(current_time)
+            # while available_batches and self.buffer:
+            #     request = self.buffer.pop()
+            #     best_batch_info = min(available_batches)
+            #     batch_id0 = best_batch_info[2]
+            #     server_id0 = best_batch_info[3]
+            #     best_batch = self.stored_batches[batch_id0]
+            #     target_server = self.servers[server_id0]
+            #     target_server.load_request_to_batch(current_time, best_batch_info[2], request)
+            #     available_batches.remove(best_batch_info)
+            #     if best_batch.has_free_slot(current_time):
+            #         info0, info1 = best_batch.updated_info(current_time=current_time)
+            #         new_info = (info0, info1, batch_id0, server_id0)
+            #         available_batches.append(new_info)
             
             
             # 先处理刚刚完成传输的Batch

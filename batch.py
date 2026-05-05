@@ -4,16 +4,22 @@ from request import Request
 from typing import List, Dict, Tuple
 
 class Batch:
-    def __init__(self, batch_id, batch_size, FFN_unit_time,  use_length_limit=False, length_limit=0, dynamic_matching = False):
+    def __init__(self, batch_id, batch_size, FFN_unit_time,  use_length_limit=False, length_limit=0, dynamic_matching = False, batch_size_limit = 128):
         self.batch_id = batch_id  # List of request IDs in the batch
         self.server_id =  -1
         self.requests :List[Request] = []  # Requests in the batch
         self.batch_size = batch_size # Maximal number of requests allowed
+        self.batch_size_limit = batch_size_limit # 在没有固定Batch size的情况下以此来表示最大允许承载的request数量
         self.length = 0
+        self.waiting_tot_length = 0
+        # 正在处理的以及刚刚load尚未加入队列的
         self.num_req = 0
+        self.num_buffered_req = 0
+        # 是否使用长度限制, 曾经处理过的与添加过的request数量
         self.use_length_limit = use_length_limit
         self.length_limit = length_limit
         self.ever_served_request = 0
+        self.ever_entered_request = 0
 
         self.other_batch_cost = 0
         self.other_batch_FFN_unit_cost = 0
@@ -50,14 +56,33 @@ class Batch:
 
         self.mapped_FFN_id = -1
         self.FFN_level = -1
+        self.served_type = -1
 
         self.dynamic_matching = dynamic_matching
+
+        self.waiting_buffer = [] # 等待本轮完成后进行load的request
 
     def append_request(self, current_time,  request:Request):
         self.requests.append(request)
         request.start_processing(current_time, self.batch_id)
+        # 此处均为正在处理的长度与数量
         self.length += request.length
         self.num_req += 1
+        # 在加入Buffer的时候已经完成数量的更新的包含了buffer里面的数量
+
+    def count_free_slot(self):
+        cnt = self.batch_size - self.num_req - self.num_buffered_req
+        assert cnt >= 0
+        return cnt
+
+    def has_free_slot(self, current_time)->bool:
+        cnt = self.count_free_slot()
+        if cnt <= 0:
+            return False
+        if self.use_length_limit:
+            if self.length >= self.length_limit:
+                return False
+        return True
 
     def start_processing_from_empty(self, current_time):
         if self.status == 0:
@@ -66,6 +91,7 @@ class Batch:
 
     def load_request(self, current_time, request:Request):
         self.append_request(current_time, request)
+        request.status = 2 # 开始随着Batch一同处理
         if self.status == 0:
             self.status = 1
             self.attention_now = True
@@ -160,17 +186,23 @@ class Batch:
                 self.length += 1
             else:
                 self.finish_request(current_time, request)
+        for request in self.waiting_buffer:
+            # 将还在处于更新状态的request进行更新
+            if request.status == 5:
+                if request.loading_finished_time >= current_time:
+                    request.status = 1
+            else:
+                assert(request.status == 1)
 
     def updated_info(self, current_time):
         return self.num_req, self.length
 
-    def has_free_slot(self, current_time)->bool:
-        if self.batch_size <= self.num_req:
-            return False
-        if self.use_length_limit:
-            if self.length >= self.length_limit:
-                return False
-        return True
+    
+    
+    # def has_free_slot_in_dynamic_size(self, current_time)->bool:
+    #     if self.batch_size_limit <= self.num_req:
+    #         return False
+    #     return True
 
     def compute_num_F_unit_time(self, alpha_A, beta_A)-> float:
         attention_cost = alpha_A*self.length + beta_A
@@ -197,9 +229,47 @@ class Batch:
             self.being_swapped = True
             self.A2F_transmission(current_time, alpha_T, beta_T)
     
+    def append_requests_from_waiting_buffer(self, current_time):
+        for request in self.waiting_buffer:
+            if request.status == 5:
+                continue
+            elif request.status == 1:
+                self.load_request(current_time, request)
+                self.waiting_buffer.remove(request)
+                self.waiting_tot_length -= request.length
+                self.num_buffered_req -= 1
+            else:
+                raise Exception("The requests entered batches should have their status changed.")
+            
+    # 注意, 一定需要检查过逻辑才能加入waiting Buffer
+    def append_request_to_waiting_buffer(self, current_time, request: Request):
+        self.waiting_buffer.append(request)
+        self.waiting_tot_length += request.length
+        self.num_buffered_req += 1
+        request.loading_to_Batch_buffer(current_time)
+
     def map_to_FFN(self, FFN_id, FFN_level):
         self.mapped_FFN_id = FFN_id
         self.FFN_level = FFN_level
+
+    # 对于有效预测 , 是否可以加入这个Batch
+    def type_loadable(self, current_time, request_type: int)->bool:
+        if not self.has_free_slot(current_time):
+            return False
+        if request_type <= 3:
+            if request_type != self.served_type:
+                return False
+        elif 5<= request_type <= 7:
+            if (request_type-self.served_type) % 5 != 0:
+                return False
+        return True
+        
+
+    def load_request(self, current_time, request: Request):
+        self.requests.append(request)
+        self.length += request.length
+        request.loading_finished_time = current_time + request.loading_time
+        request.status = 5
 
     def print_info(self):
         print("Batch ID: ", self.batch_id)

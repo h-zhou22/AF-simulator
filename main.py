@@ -53,9 +53,11 @@ def parse_args():
     parser.add_argument("--alpha_A", type=float, default=0.1)
     parser.add_argument("--alpha_T", type=float, default=0.001)
     parser.add_argument("--alpha_F", type=float, default=0.1)
+    parser.add_argument("--alpha_L", type=float, default=1)
     parser.add_argument("--beta_A", type=float, default=512.0)
     parser.add_argument("--beta_T", type=float, default=16.0)
     parser.add_argument("--beta_F", type=float, default=512.0)
+    parser.add_argument("--beta_L", type=float, default=1.0)
 
     parser.add_argument(
         "--out_prefix",
@@ -67,6 +69,11 @@ def parse_args():
     parser.add_argument("--allow_exchange", action="store_true",
                         help="Allow batches inside pipeline FFN to exchange when former ones are ready")
     
+    parser.add_argument("--server_capacity", type=int, default=960000,
+        help="Maximal memory capacity of Attention server")
+    parser.add_argument("--prediction_agent", action="store_true",
+                        help="Use different agents with ability to predict the generation length.")
+
     return parser.parse_args()
 
 def main():
@@ -91,6 +98,9 @@ def main():
     use_length_limit = args.use_length_limit
     stored_batches: Dict[int, Batch] = {}
 
+    memory_capacity = args.server_capacity
+    use_prediction_agent = args.prediction_agent
+
     for idx in range(num_servers):
         batches: Dict[int, Batch] = {}
         for i in range(num_batch):
@@ -99,42 +109,52 @@ def main():
             new_batch.server_id = idx
             stored_batches[batch_id] = new_batch
             batch_id += 1
-        server = Server(idx, args.num_batch, batch_size, unit_FFN_time, batches)
+        server = Server(idx, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
         if args.FFN_type == 4:
             server.dynamic_matching = True
         servers.append(server)
 
     generator_seed = 4
+    agent_seed = 42
     if args.generator == 0:
         generator = UniformGenerator(
             #arranger=arranger,
             next_token_prob= args.next_token_prob,
             seed= generator_seed,
+            agent_seed = agent_seed,
             rate=args.rate,
             max_length=args.max_prompt_len,
             #next_token_prob=0.7,
             num_per_cyc= args.gen_req_per_cyc,
-            maximal_generation = args.maximal_generation
+            maximal_generation = args.maximal_generation,
+            alpha_L= args.alpha_L,
+            beta_L= args.beta_L
         )  
     elif args.generator == 1:
         generator = UniformRandomGenerator(
             next_token_prob= args.next_token_prob,
             seed= generator_seed,
+            agent_seed= agent_seed,
             rate=args.gen_prob,
             max_length=args.max_prompt_len,
             num_per_cyc= args.gen_req_per_cyc,
             maximal_generation = args.maximal_generation,
-            basic_length=args.basic_num
+            basic_length=args.basic_num,
+            alpha_L= args.alpha_L,
+            beta_L= args.beta_L
         ) 
     elif args.generator == 2:
         generator = MultitypeRandomGenerator(
             next_token_prob= args.next_token_prob,
             seed= generator_seed,
+            agent_seed= agent_seed,
             rate=args.gen_prob,
             max_length=args.max_prompt_len,
             num_per_cyc= args.gen_req_per_cyc,
             maximal_generation = args.maximal_generation,
-            basic_length=args.basic_num
+            basic_length=args.basic_num,
+            alpha_L= args.alpha_L,
+            beta_L= args.beta_L
         )
     else:
         raise NotImplementedError("Not Implemented Yet in generator.py")
@@ -157,7 +177,9 @@ def main():
     finished_requests = 0
     test_print = False
 
-   
+    arranger = None 
+    #TODO: Define arranger
+    assert 1==0
 
     buffer = deque()
     req_inq = 0
@@ -234,8 +256,8 @@ def main():
         while finished_requests < args.total_request:
             newly_generated_reqs = generator.step(global_time)
             for req in newly_generated_reqs:
-                buffer.append(req)
-                req_inq += 1
+                arranger.inqueue_request(req)
+
             scheduler.do_cycle_work(global_time)
             finished_requests = stats.finished_request
             global_time += 1
@@ -245,15 +267,16 @@ def main():
             raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
         initial_reqs = generator.do_initial_generation()
         for req in initial_reqs:
-            buffer.append(req)
+            arranger.inqueue_request(req)
+
         # 一开始要填满所有Batch， 至少需要生成这些request才能满足要求
         scheduler = PipelineScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
         # PipelineScheduler的初始匹配在构造函数中完成
         while finished_requests < args.total_request:
             newly_generated_reqs = generator.step(global_time)
             for req in newly_generated_reqs:
-                buffer.append(req)
-                req_inq += 1
+                arranger.inqueue_request(req)
+
             scheduler.do_cycle_work(global_time)
             finished_requests = stats.finished_request
             global_time += 1
@@ -263,14 +286,15 @@ def main():
             raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
         initial_reqs = generator.do_initial_generation()
         for req in initial_reqs:
-            buffer.append(req)
+            arranger.inqueue_request(req)
+
         scheduler = DynamicScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
         
         while finished_requests < args.total_request:
             newly_generated_reqs = generator.step(global_time)
             for req in newly_generated_reqs:
-                buffer.append(req)
-                req_inq += 1
+                arranger.inqueue_request(req)
+                
             scheduler.do_cycle_work(global_time)
             finished_requests = stats.finished_request
             global_time += 1 

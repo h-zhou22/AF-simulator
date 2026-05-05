@@ -3,7 +3,7 @@ import random
 
 class Request:
     def __init__(self, rid, arrival_time, length, max_possible_length, next_token_prob, seed=42, use_max_length_limit=True, 
-                 use_min_length_limit=False, min_length_limit = 4096, fixed_generation_round = False, fixed_generation_len = 20):
+                 use_min_length_limit=False, min_length_limit = 4096, fixed_generation_round = False, fixed_generation_len = 20, alpha_L = 1.0, beta_L=1):
         self.rid = rid
         self.arrival = arrival_time
         self.max_possible_length = max_possible_length
@@ -12,8 +12,11 @@ class Request:
         self.use_max_length_limit = use_max_length_limit
         self.use_min_length_limit = use_min_length_limit
         self.min_length_limit = min_length_limit
+       
         self.fixed_generation_round = fixed_generation_round
         self.fixed_generation_len = fixed_generation_len
+        self.use_fixed_final_length = False
+        self.fixed_final_length = length + fixed_generation_len
 
         self.original_len = length
         self.length = length  # current generated length
@@ -30,9 +33,31 @@ class Request:
         # Statistics
         self.cyc_used = 0  # total cycles used
         # 通常为1，在启用Multitype_req的时候为1-4。其中1为普通, 2有最小输出长度要求, 3为超长, 4为20轮的超长
+        # 5 为被agent modify过的情况
         self.req_type = 1
 
-    
+        self.agent_id = -1
+        self.agent_belong = -1
+        self.predictable = False
+        self.actual_type = 0
+        
+        self.predicted_type = -1
+        self.predicted_length = 2147483647
+        
+        self.use_target_length = False
+        self.target_length = 2147483647 # 目标输出长度
+        
+        
+        self.status = 0 # 0:未开始, 1: 已分配至server, 尚未分配至batch, 2:正在随batch一同处理, 3: 被evict， 4：Finished, 5: 正在loading
+
+        self.alpha_L = alpha_L
+        self.beta_L = beta_L
+        self.loading_finished_time = -1
+
+        # 初始的request默认已经装填在Batch当中, 不需要load耗时, 但evict之后失去特权
+        # 对这些request, 计算时长的时候需要增加初始的load用时
+        self.initial_requests = False
+
     def do_new_round(self, current_time, stats):
     # Increase the length and decide whether to continue generating tokens
         self.length += 1
@@ -40,8 +65,16 @@ class Request:
         self.proc_end_times.append(current_time)
         if self.use_min_length_limit and self.length < self.min_length_limit:
             return True
+        # Agent 使用
+        elif self.use_fixed_final_length:
+            if self.length < self.fixed_final_length:
+                return True
+            else:
+                self.finish_request(current_time, stats)
+                return False
+        # Multi-type使用
         elif self.fixed_generation_round :
-            if self.rounds >= self.fixed_generation_len:
+            if self.rounds < self.fixed_generation_len:
                 return True
             else:
                 self.finish_request(current_time, stats)
@@ -60,6 +93,7 @@ class Request:
 
     def finish_request(self, current_time, stats):
         self.completion_time = current_time
+        self.status = 4
         self.finished = True
 
         self.count_statistics(stats)
@@ -78,6 +112,15 @@ class Request:
 
     def prepare_for_eviction(self):
         self.prepare_for_eviction = True
+
+    def loading_to_Batch_buffer(self, current_time):
+        if self.initial_requests:
+            self.loading_finished_time = current_time
+            self.initial_requests = False
+        else:
+            self.loading_finished_time = current_time + (self.alpha_L*self.length + self.beta_L)
+        self.status = 5
+
 
     
     

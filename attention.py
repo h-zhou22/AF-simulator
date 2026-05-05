@@ -5,10 +5,11 @@ from batch import Batch
 from typing import List, Dict, Tuple
 
 class Server:
-    def __init__(self, server_id, num_batches, batch_size, unit_FFN_time, batches: dict[int,Batch], dynamic_matching = False):
+    def __init__(self, server_id, num_batches, batch_size, unit_FFN_time, batches: dict[int,Batch], memory_capacity = 960000, dynamic_matching = False):
         self.num_batches = num_batches
         self.batches = batches
         self.batch_size = batch_size
+
         assert len(batches) == num_batches
         self.server_id = server_id
         self.unit_FFN_time = unit_FFN_time
@@ -28,9 +29,34 @@ class Server:
         #self.ceiling = True
 
         self.dynamic_matching = dynamic_matching
+        self.memory_capacity = memory_capacity
+        # Attention里面不维护静态的memory size，每次需动态查询
+        #self.memory_used = 0
+        self.typed_server = False
+        self.served_type = []
+        for batch in batches.values():
+            self.served_type.append(batch.served_type)
+        self.batch_size_upper_bound = 64
+        self.dynamic_space = 4096
 
+    # 只判断是否能够装得下
+    def judge_capable(self, request: Request)-> bool:
+        memory_used = self.compute_memory_usage()
+        if memory_used + request.memory_size > self.memory_capacity:
+            return False
+        else:
+            return True
+
+    def compute_memory_usage(self):
+        memory_used = 0
+        for batch in self.batches.values():
+            memory_used += (batch.length+batch.waiting_tot_length)
+        return memory_used
+    
     def load_request_to_batch(self, current_time, batch_id, request:Request):
-        self.batches[batch_id].load_request(current_time, request)
+        # 不维护静态的memory大小(为了更好的代码兼容度)
+        self.batches[batch_id].append_request_to_waiting_buffer(current_time, request)
+        # self.batches[batch_id].load_request(current_time, request)
 
     def find_available_batch(self)-> List[Tuple[int, int, int, int]]:
         available_batches = []
