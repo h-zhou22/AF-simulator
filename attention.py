@@ -39,6 +39,8 @@ class Server:
         self.batch_size_upper_bound = 64
         self.dynamic_space = 4096
 
+        self.requests_to_be_evicted = []
+
     # 只判断是否能够装得下
     def judge_capable(self, request: Request)-> bool:
         memory_used = self.compute_memory_usage()
@@ -153,3 +155,27 @@ class Server:
     def reactivate_batches(self, current_time, alpha_A, beta_A, alpha_T, beta_T):
         for batch in self.batches.values():
             batch.reactivate_after_match_switching(current_time, alpha_T, beta_T)
+
+    def evict_requests(self, current_time):
+        # 无需返回, 只负责将一些requests加入self.requests_to_be_evicted
+        server_longest_req = None
+        for batch in self.batches.values():
+            if batch.served_type != -1:
+                evil_reqs = batch.find_evil_requests(current_time)
+                if evil_reqs is not None:
+                    for req in evil_reqs:
+                        self.requests_to_be_evicted.append(req)
+                else: # 在这种情况下, 需要添加最长的request
+                    if batch.served_type == 4:
+                        continue
+                    longest_req = batch.find_longest_request(current_time)
+                    self.requests_to_be_evicted.append(longest_req)
+
+    def evict_out_requests(self, current_time):
+        evict_out = []
+        for req in self.requests_to_be_evicted:
+            if req.status == 3:
+                evict_out.append(req)
+        for req in evict_out:
+            self.requests_to_be_evicted.remove(req)
+        return evict_out

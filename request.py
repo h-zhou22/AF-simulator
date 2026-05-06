@@ -47,8 +47,8 @@ class Request:
         self.use_target_length = False
         self.target_length = 2147483647 # 目标输出长度
         
-        
-        self.status = 0 # 0:未开始, 1: 已分配至server, 尚未分配至batch, 2:正在随batch一同处理, 3: 被evict， 4：Finished, 5: 正在loading
+        self.marked_eviction = False
+        self.status = 0 # 0:未开始, 1: 已分配至server, 尚未分配至batch, 2:正在随batch一同处理, 3: 已经被evict， 4：Finished, 5: 正在loading
 
         self.alpha_L = alpha_L
         self.beta_L = beta_L
@@ -56,13 +56,16 @@ class Request:
 
         # 初始的request默认已经装填在Batch当中, 不需要load耗时, 但evict之后失去特权
         # 对这些request, 计算时长的时候需要增加初始的load用时
-        self.initial_requests = False
 
     def do_new_round(self, current_time, stats):
     # Increase the length and decide whether to continue generating tokens
         self.length += 1
         self.rounds += 1
         self.proc_end_times.append(current_time)
+        # 被evict的情况特殊判断
+        if self.marked_eviction:
+            self.status = 3
+            return False
         if self.use_min_length_limit and self.length < self.min_length_limit:
             return True
         # Agent 使用
@@ -114,9 +117,9 @@ class Request:
         self.prepare_for_eviction = True
 
     def loading_to_Batch_buffer(self, current_time):
-        if self.initial_requests:
+        if self.status == 0:
             self.loading_finished_time = current_time
-            self.initial_requests = False
+            raise Exception("Initial request should be directly appended using append_request in Batch")
         else:
             self.loading_finished_time = current_time + (self.alpha_L*self.length + self.beta_L)
         self.status = 5

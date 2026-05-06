@@ -28,20 +28,20 @@ class BasicScheduler:
         self.AF_match : Dict[int, int] = {} # server_id -> FFN_id
 
         self.initially_full = initially_full
-        # if self.initially_full:
-        #     self.do_initialize_filling()
+        if self.initially_full:
+            self.do_initialize_filling()
         self.match_AF()
 
         self.arranger = arranger
 
-    # def do_initialize_filling(self):
-    #     if self.buffer.size() < self.num_batches*self.batch_size:
-    #         raise ValueError("Buffer size is smaller than total batch capacity")
-    #     for batch in self.stored_batches.values():
-    #         if batch.num_req < batch.batch_size:
-    #             request = self.buffer.pop()
-    #             batch.append_request(0, request)
-                # load_request加入之后会立刻开始处理, 所以初始化都用append
+    def do_initialize_filling(self):
+        tot_batch_size = 0
+        for batch in self.stored_batches.values():
+            tot_batch_size += batch.batch_size
+        if self.arranger.num_req_inque < tot_batch_size:
+            raise ValueError("Not enough requests in the buffer to fill all batches")
+        for batch in self.stored_batches.values():
+            self.arranger.do_initial_filling()
 
     def match_AF(self):
         # match each server to a given FFN worker
@@ -58,11 +58,16 @@ class BasicScheduler:
                 server = self.servers[server_id]
                 FFN_server = self.FFN_workers[self.AF_match[server_id]]
                 server.cycle_work(current_time, self.stats, FFN_server, self.alpha_T, self.beta_T)
-
-            available_batches : List[Tuple[int, int, int, int]] = []
-            for server in self.servers:
-                extend_batches = server.find_available_batch()
-                available_batches.extend(extend_batches)
+                if server.compute_memory_usage() > server.memory_capacity + server.dynamic_space:
+                    server.evict_requests(current_time)
+                evicted_requests = server.evict_out_requests(current_time)
+                if evicted_requests:
+                    self.arranger.evict_all_requests(evicted_requests)
+            
+            # available_batches : List[Tuple[int, int, int, int]] = []
+            # for server in self.servers:
+            #     extend_batches = server.find_available_batch()
+            #     available_batches.extend(extend_batches)
 
             self.arranger.arrange_requests(current_time)
             # while available_batches and self.buffer:
@@ -156,8 +161,8 @@ class PipelineScheduler:
 
         self.initially_full = initially_full
         # 先把所有的Attention装满
-        # if self.initially_full:
-        #     self.do_initialize_filling()
+        if self.initially_full:
+            self.do_initialize_filling()
         # TODO: 初始化AF匹配策略以及后续AF匹配的动态调整
 
         self.do_initial_matching()
@@ -170,6 +175,14 @@ class PipelineScheduler:
             print("Server: {}, Mapped FFN (real): {}, Matched FFN: {}".format(server.server_id, server.mapped_FFN_id, self.AF_match[server.server_id]))
             print("Server Level: {}, Server weight: {}".format(server.FFN_level, server.weight))
 
+    def do_initialize_filling(self):
+        tot_batch_size = 0
+        for batch in self.stored_batches.values():
+            tot_batch_size += batch.batch_size
+        if self.arranger.num_req_inque < tot_batch_size:
+            raise ValueError("Not enough requests in the buffer to fill all batches")
+        for batch in self.stored_batches.values():
+            self.arranger.do_initial_filling()
     # def do_initialize_filling(self):
     #     print("Buffer size, Need to fill",len(self.buffer),self.num_batches*self.batch_size)
     #     if len(self.buffer) < self.num_batches*self.batch_size:
@@ -436,11 +449,15 @@ class PipelineScheduler:
                 server = self.servers[server_id]
                 FFN_server = self.FFN_workers[self.AF_match[server_id]]
                 server.cycle_work(current_time, self.stats, FFN_server, self.alpha_T, self.beta_T)
-
-            available_batches : List[Tuple[int, int, int, int]] = []
-            for server in self.servers:
-                extend_batches = server.find_available_batch()
-                available_batches.extend(extend_batches)
+                if server.compute_memory_usage() > server.memory_capacity + server.dynamic_space:
+                    server.evict_requests(current_time)
+                evicted_requests = server.evict_out_requests(current_time)
+                if evicted_requests:
+                    self.arranger.evict_all_requests(evicted_requests)
+            # available_batches : List[Tuple[int, int, int, int]] = []
+            # for server in self.servers:
+            #     extend_batches = server.find_available_batch()
+            #     available_batches.extend(extend_batches)
 
             self.arranger.arrange_requests(current_time)
             # while available_batches and self.buffer:
@@ -761,19 +778,21 @@ class DynamicScheduler:
         self.beta_F = beta_F
         #self.AF_match : Dict[int, int] = {} # server_id -> FFN_id
 
-        # self.initially_full = initially_full
-        # if self.initially_full:
-        #     self.do_initialize_filling()
+        self.initially_full = initially_full
+        if self.initially_full:
+            self.do_initialize_filling()
         
         self.batch_queue = BatchQueue(num_queues=10)
 
-    # def do_initialize_filling(self):
-    #     if len(self.buffer) < self.num_batches*self.batch_size:
-    #         raise ValueError("Buffer size is smaller than total batch capacity")
-    #     for batch in self.stored_batches.values():
-    #         if batch.num_req < batch.batch_size:
-    #             request = self.buffer.pop()
-    #             batch.append_request(0, request)
+    def do_initialize_filling(self):
+        tot_batch_size = 0
+        for batch in self.stored_batches.values():
+            tot_batch_size += batch.batch_size
+        if self.arranger.num_req_inque < tot_batch_size:
+            raise ValueError("Not enough requests in the buffer to fill all batches")
+        for batch in self.stored_batches.values():
+            self.arranger.do_initial_filling()
+        
                 # load_request加入之后会立刻开始处理, 所以初始化都用append
 
     def do_cycle_work(self, current_time):
@@ -783,12 +802,17 @@ class DynamicScheduler:
                 server = self.servers[server_id]
                 #FFN_server = self.FFN_workers[self.AF_match[server_id]]
                 server.cycle_work(current_time, self.stats, alpha_T= self.alpha_T,beta_T= self.beta_T)
-            
-            available_batches : List[Tuple[int, int, int, int]] = []
-            for server in self.servers:
-                # 请注意, 这里假设Batch一般情况下都应该是全满的
-                extend_batches = server.find_available_batch()
-                available_batches.extend(extend_batches)
+                if server.compute_memory_usage() > server.memory_capacity + server.dynamic_space:
+                    server.evict_requests(current_time)
+                evicted_requests = server.evict_out_requests(current_time)
+                if evicted_requests:
+                    self.arranger.evict_all_requests(evicted_requests)
+
+            # available_batches : List[Tuple[int, int, int, int]] = []
+            # for server in self.servers:
+            #     # 请注意, 这里假设Batch一般情况下都应该是全满的
+            #     extend_batches = server.find_available_batch()
+            #     available_batches.extend(extend_batches)
 
             self.arranger.arrange_requests(current_time)
             # while available_batches and self.buffer:

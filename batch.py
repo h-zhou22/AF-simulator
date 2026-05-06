@@ -57,6 +57,8 @@ class Batch:
         self.mapped_FFN_id = -1
         self.FFN_level = -1
         self.served_type = -1
+        """served_type定义与agent_type完全相同 0 <1024, 1 4096, 2 8192
+        3 16384, 4 Short generation, 5-7为predicted 1024, 4096, 8192。 -1为普通的batch"""
 
         self.dynamic_matching = dynamic_matching
 
@@ -90,8 +92,8 @@ class Batch:
             self.attention_now = True
 
     def load_request(self, current_time, request:Request):
-        self.append_request(current_time, request)
         request.status = 2 # 开始随着Batch一同处理
+        self.append_request(current_time, request)
         if self.status == 0:
             self.status = 1
             self.attention_now = True
@@ -101,6 +103,12 @@ class Batch:
         if request not in self.requests:
             raise ValueError("Request not in batch")
             #return False
+        if request.status == 3:
+            # 被evict掉的request, 长度已经扣除, 只需调整batch size
+            self.num_req -= 1
+            self.requests.remove(request)
+            return True
+
         self.ever_served_request += 1
         self.requests.remove(request)
         self.length -= (request.length-1)
@@ -256,6 +264,9 @@ class Batch:
     def type_loadable(self, current_time, request_type: int)->bool:
         if not self.has_free_slot(current_time):
             return False
+        if self.served_type == -1:
+            # 基础Batch， 支持任何种类的请求
+            return True
         if request_type <= 3:
             if request_type != self.served_type:
                 return False
@@ -270,6 +281,31 @@ class Batch:
         self.length += request.length
         request.loading_finished_time = current_time + request.loading_time
         request.status = 5
+
+    def find_evil_requests(self, current_time):
+        evil_requests = []
+        for request in self.requests:
+            if request.use_target_length:
+                if request.target_length < request.length:
+                    evil_requests.append(request)
+        return evil_requests
+    
+    def find_longest_request(self, current_time):
+        max_length = 0
+        longest_request = None
+        for request in self.requests:
+            if request.length > max_length:
+                max_length = request.length
+                longest_request = request
+            elif request.length == max_length:
+                # 如果存在多个最长的request， 那么把初始长度最长的丢出去
+                if request.original_len > longest_request.original_len:
+                    longest_request = request
+        return longest_request
+    
+    def mark_request_evicted(self, request: Request):
+        request.marked_eviction = True
+        self.length -= request.length
 
     def print_info(self):
         print("Batch ID: ", self.batch_id)

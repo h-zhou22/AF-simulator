@@ -5,6 +5,7 @@ from attention import Server
 from stats import StatsCollector
 from collections import deque
 from typing import List, Tuple, Dict
+from batch import Batch
 
 class GlobalArranger:
     def __init__(self, servers, stored_batches, costly_loading: bool = False):
@@ -31,6 +32,13 @@ class GlobalArranger:
         self.num_req_inque += 1
         self.num_req_served += 1
 
+    def do_initial_filling(self, batch: Batch):
+        while self.num_req_inque and batch.num_req < batch.batch_size:
+            request = self.buffer.pop()
+            self.num_req_inque -= 1
+            # 注意, 初始的request直接绕开了buffer的程序, 是为了保证模拟的初始化正常
+            batch.load_request(0, request)
+        
 
     def evict_all_requests(self, requests: list[Request]):
         """
@@ -124,6 +132,14 @@ class GreedyArranger:
         self.num_req_served = 0
         self.num_req_evicted = 0
         self.costly_loading = costly_loading
+        
+
+    def do_initial_filling(self, batch: Batch):
+        while self.num_req_inque and batch.num_req < batch.batch_size:
+            request = self.buffer.pop()
+            self.num_req_inque -= 1
+            # 注意, 初始的request直接绕开了buffer的程序, 是为了保证模拟的初始化正常
+            batch.load_request(0, request)
 
     def inqueue_request(self, request: Request):
         """
@@ -237,6 +253,17 @@ class MultitypeArranger:
         # 各个type的trequest的对应生成长度
         # 如果更改了实验配置, 此处也需要进行修改
         self.predicted_type_corresponding_length = [0, 20, 1024, 4096]
+
+    def do_initial_filling(self, batch: Batch):
+        if batch.served_type == -1:
+            for qid in (4, 5, 6, 7, 0, 1, 2, 3):
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+                if batch.num_req >= batch.batch_size:
+                    break
+                
 
     def length_classify(self, request: Request) -> int:
         # 根据现在的长度而非original length进行划分
@@ -387,9 +414,9 @@ class MultitypeArranger:
                 if self.try_allocation(current_time, request, qid):
                     queue.popleft()
                     self.num_req_inque -= 1
-                    max_capacity = self.find_maximal_capacity(current_time)
-                    if max_capacity < (256 << qid):
-                        break
+                    # max_capacity = self.find_maximal_capacity(current_time)
+                    # if max_capacity < (256 << qid):
+                    #     break
                     continue
                 allocated = False
         
