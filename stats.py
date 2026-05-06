@@ -29,6 +29,8 @@ class StatsCollector:
             ">4096": 0
         }
         os.makedirs(self.output_dir, exist_ok=True)
+
+        self.batch_avg_attention = []
         
 
     def record(self, req: Request):
@@ -113,14 +115,16 @@ class StatsCollector:
             
             return    
         avg_cost = tot_cost/rounds
-        
+        attention_avg_cost = sum(batch.Acost)/len(batch.Acost)
+        attention_weight = attention_avg_cost/batch.FFN_unit_cost
+        self.batch_avg_attention.append(attention_weight)
         self.batch_info.append(
             {
                 "batch_id": batch.batch_id,
                 "served_requests": batch.ever_served_request,
-                "Acost": batch.Acost,
-                "Fcost": batch.Fcost,
-                "Round_cost": batch.round_cost,
+                "Attention_avg_cost": attention_avg_cost,
+                # "Acost": batch.Acost,    
+                # "Round_cost": batch.round_cost,
                 "Avg_Round_cost": avg_cost
             }
         )
@@ -195,16 +199,19 @@ class StatsCollector:
             batch_round_cost += b["Avg_Round_cost"]
         batch_round_cost /= total_batch
 
+        batch_attention_cost = sum(self.batch_avg_attention)/len(self.batch_avg_attention)
         return {
             "finished_requests": self.finished_request,
             #"vip_requests": len(buckets["vip"]),
             "avg_total_time": avg_total_time,
+            "batch_attention_avg": batch_attention_cost,
             "avg_time_per_cycle_per_request": avg_cycle_time,
             "avg_total_time_by_initial_length": bucket_avg_time,
             "finished count": self.length_distribution,
 
             "num_batches": total_batch,
-            "avg_batch_cost": batch_round_cost
+            "avg_batch_cost": batch_round_cost,
+            
         }
 
     def dump_batch_info_to_json(self):

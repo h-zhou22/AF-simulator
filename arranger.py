@@ -28,6 +28,8 @@ class GlobalArranger:
         """
         A new request arrives, add it to the buffer.
         """
+        #print("Request inque")
+        #request.print_debug_information()
         self.buffer.append(request)
         self.num_req_inque += 1
         self.num_req_served += 1
@@ -37,6 +39,7 @@ class GlobalArranger:
             request = self.buffer.pop()
             self.num_req_inque -= 1
             # 注意, 初始的request直接绕开了buffer的程序, 是为了保证模拟的初始化正常
+            request.status = 2
             batch.load_request(0, request)
         
 
@@ -51,6 +54,7 @@ class GlobalArranger:
         """
         A request is evicted from server, add it back to the buffer.
         """
+        print("Request {} evicted".format(request.rid))
         self.buffer.appendleft(request)
         self.num_req_inque += 1
         self.num_req_evicted += 1
@@ -64,6 +68,7 @@ class GlobalArranger:
         
         best_server = None
         max_free_capacity = -1
+        #print("Allocation gong on")
         for server in self.servers:    
             memory_used = server.compute_memory_usage()    
             if server.memory_capacity < request.length + memory_used:
@@ -91,12 +96,14 @@ class GlobalArranger:
             # 注意, 这里都先加入等待区
             # 原先这里的含义是直接加入Batch且保证此时刚好可以一起开始
             best_server.load_request_to_batch(current_time,best_batch.batch_id, request)
+            #print("Request loaded: ", request.rid)
             return True
         else:
             return False
         
     def arrange_requests(self, current_time, allow_further_find: bool = False):
         if not self.buffer:
+            #print("Empty buffer")
             return None
         if not allow_further_find:
             allocated = True
@@ -139,6 +146,7 @@ class GreedyArranger:
             request = self.buffer.pop()
             self.num_req_inque -= 1
             # 注意, 初始的request直接绕开了buffer的程序, 是为了保证模拟的初始化正常
+            request.status = 2
             batch.load_request(0, request)
 
     def inqueue_request(self, request: Request):
@@ -259,6 +267,7 @@ class MultitypeArranger:
             for qid in (4, 5, 6, 7, 0, 1, 2, 3):
                 while self.buffer[qid] and batch.num_req < batch.batch_size:
                     request = self.buffer[qid].popleft()
+                    request.status = 2
                     batch.load_request(0, request)
                     self.num_req_inque -= 1
                 if batch.num_req >= batch.batch_size:

@@ -92,6 +92,7 @@ class Server:
                 if batch.attention_now:
                     continue # Should be done in attention_work
                 if current_time >= batch.current_ending:
+                    #raise Exception("Batch {} in server {} is still in attention".format(batch_id, self.server_id))
                     batch.A2F_transmission(current_time, alpha_T, beta_T)
                     self.current_busy = False
             elif batch.status == 2:
@@ -179,3 +180,6 @@ class Server:
         for req in evict_out:
             self.requests_to_be_evicted.remove(req)
         return evict_out
+
+    def print_debug_information(self):
+        print("Server ID: {}, server capacity:{}".format(self.server_id, self.memory_capacity))

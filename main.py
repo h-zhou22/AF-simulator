@@ -9,10 +9,13 @@ from FFN import FFN, dynamic_FFN
 from batch import Batch
 from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler
 from collections import deque
+from arranger import GlobalArranger, GreedyArranger, MultitypeArranger
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Simulation Experiment Controller")
 
+    parser.add_argument("--arranger", type=int, default=0,
+                        help="0 global arranger, 1 Greedy arranger, 2 Multi-type arranger")
     parser.add_argument("--generator", type=int, default=1,
                         help="0 uniform generator, 1 random-uniform generator, 2 geometry generator, 3 poisson generator")
     parser.add_argument("--num_server", type=int, default=1,
@@ -177,9 +180,14 @@ def main():
     finished_requests = 0
     test_print = False
 
-    arranger = None 
-    #TODO: Define arranger
-    assert 1==0
+    costly_loading = False
+    if args.arranger == 0:
+        arranger = GlobalArranger(servers, stored_batches, costly_loading=costly_loading)
+    elif args.arranger == 1:
+        arranger = GreedyArranger(servers, costly_loading=costly_loading)
+    elif args.arranger == 2:
+        arranger = MultitypeArranger(servers, costly_loading=costly_loading)
+    
 
     buffer = deque()
     req_inq = 0
@@ -251,9 +259,22 @@ def main():
                     print("Batch current ending: ", stored_batches[j].current_ending)
     # Loop End For Single FFN cases
     elif args.FFN_type == 1:  
-        scheduler = BasicScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F)
+        least_num_to_fill = args.num_batch * args.batch_size 
+        if args.basic_num < least_num_to_fill:
+            print("Basic num:{}, least to fill:{}".format(args.basic_num, args.num_batch * args.batch_size ))
+            raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
+        initial_reqs = generator.do_initial_generation()
+        for req in initial_reqs:
+            arranger.inqueue_request(req)
+
+        scheduler = BasicScheduler(arranger, servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F)
         scheduler.match_AF()
         while finished_requests < args.total_request:
+            if global_time % 1000 == 0:
+                print("Global Time: ", global_time)
+                print("Finished requests: ", finished_requests)
+                # for batch in stored_batches.values():
+                #     print("Batch {}, Status: {} ".format(batch.batch_id, batch.status))
             newly_generated_reqs = generator.step(global_time)
             for req in newly_generated_reqs:
                 arranger.inqueue_request(req)
@@ -270,7 +291,7 @@ def main():
             arranger.inqueue_request(req)
 
         # 一开始要填满所有Batch， 至少需要生成这些request才能满足要求
-        scheduler = PipelineScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
+        scheduler = PipelineScheduler(arranger, servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
         # PipelineScheduler的初始匹配在构造函数中完成
         while finished_requests < args.total_request:
             newly_generated_reqs = generator.step(global_time)
@@ -288,7 +309,7 @@ def main():
         for req in initial_reqs:
             arranger.inqueue_request(req)
 
-        scheduler = DynamicScheduler(servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
+        scheduler = DynamicScheduler(arranger, servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
         
         while finished_requests < args.total_request:
             newly_generated_reqs = generator.step(global_time)

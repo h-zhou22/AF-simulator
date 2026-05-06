@@ -53,7 +53,7 @@ class Request:
         self.alpha_L = alpha_L
         self.beta_L = beta_L
         self.loading_finished_time = -1
-
+        self.loading_time = self.alpha_L * self.length + self.beta_L
         # 初始的request默认已经装填在Batch当中, 不需要load耗时, 但evict之后失去特权
         # 对这些request, 计算时长的时候需要增加初始的load用时
 
@@ -62,6 +62,7 @@ class Request:
         self.length += 1
         self.rounds += 1
         self.proc_end_times.append(current_time)
+        #print("Request ID: {}, Current length: {}")
         # 被evict的情况特殊判断
         if self.marked_eviction:
             self.status = 3
@@ -70,6 +71,7 @@ class Request:
             return True
         # Agent 使用
         elif self.use_fixed_final_length:
+            #print("Fixed final length: {}".format(self.fixed_final_length))
             if self.length < self.fixed_final_length:
                 return True
             else:
@@ -77,6 +79,7 @@ class Request:
                 return False
         # Multi-type使用
         elif self.fixed_generation_round :
+            #print("Fixed generation rounds: {}".format(self.fixed_generation_len))
             if self.rounds < self.fixed_generation_len:
                 return True
             else:
@@ -96,6 +99,7 @@ class Request:
 
     def finish_request(self, current_time, stats):
         self.completion_time = current_time
+        print("Request {} finished at time {}".format(self.rid, current_time))
         self.status = 4
         self.finished = True
 
@@ -117,15 +121,18 @@ class Request:
         self.prepare_for_eviction = True
 
     def loading_to_Batch_buffer(self, current_time):
-        if self.status == 0:
-            self.loading_finished_time = current_time
-            raise Exception("Initial request should be directly appended using append_request in Batch")
-        else:
-            self.loading_finished_time = current_time + (self.alpha_L*self.length + self.beta_L)
+        # if self.status == 0:
+        #     self.loading_finished_time = current_time
+        #     print("Current time:{}".format(current_time))
+        #     raise Exception("Initial request should be directly appended using append_request in Batch")
+        # else:
+        self.loading_finished_time = current_time + (self.alpha_L*self.length + self.beta_L)
         self.status = 5
 
+    def print_debug_information(self):
+        print("Request ID: {}, Length: {}, Original length: {}, Rounds:{} ".format(self.rid, self.length, self.original_len,self.rounds))
+        print("Batch: {}, Agent type:{}, Predicted type:{}, Status:{}".format(self.batch_id, self.req_type, self.predicted_type, self.status))
 
-    
     
     
 

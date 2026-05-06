@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 class BasicScheduler:
 # AF之间固定匹配不再更改
-    def __init__(self, arranger, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
+    def __init__(self, arranger, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
         self.servers = servers
         self.buffer = buffer
         self.stored_batches = stored_batches
@@ -28,20 +28,22 @@ class BasicScheduler:
         self.AF_match : Dict[int, int] = {} # server_id -> FFN_id
 
         self.initially_full = initially_full
+        self.arranger = arranger
         if self.initially_full:
             self.do_initialize_filling()
         self.match_AF()
 
-        self.arranger = arranger
+        
 
     def do_initialize_filling(self):
         tot_batch_size = 0
         for batch in self.stored_batches.values():
             tot_batch_size += batch.batch_size
         if self.arranger.num_req_inque < tot_batch_size:
+            print("Basic number:{}, actually needed:{}".format(self.arranger.num_req_inque, tot_batch_size))
             raise ValueError("Not enough requests in the buffer to fill all batches")
         for batch in self.stored_batches.values():
-            self.arranger.do_initial_filling()
+            self.arranger.do_initial_filling(batch)
 
     def match_AF(self):
         # match each server to a given FFN worker
@@ -68,6 +70,15 @@ class BasicScheduler:
             # for server in self.servers:
             #     extend_batches = server.find_available_batch()
             #     available_batches.extend(extend_batches)
+            test_print_debug = False
+            if test_print_debug:
+                print("Cycle: {}".format(current_time))
+                # if current_time > 1:
+                #     raise ValueError("Cycle work should only be called once")
+                for server in self.servers:
+                    server.print_debug_information()
+                for batch in self.stored_batches.values():
+                    batch.print_debug_information()
 
             self.arranger.arrange_requests(current_time)
             # while available_batches and self.buffer:
@@ -813,7 +824,11 @@ class DynamicScheduler:
             #     # 请注意, 这里假设Batch一般情况下都应该是全满的
             #     extend_batches = server.find_available_batch()
             #     available_batches.extend(extend_batches)
-
+            """打印所有server和Batch的状态"""
+            for server in self.servers:
+                server.print_debug_information()
+            for batch in self.stored_batches.values():
+                batch.print_debug_information()
             self.arranger.arrange_requests(current_time)
             # while available_batches and self.buffer:
             #     request = self.buffer.pop()

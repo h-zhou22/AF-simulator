@@ -68,6 +68,7 @@ class Batch:
         self.requests.append(request)
         request.start_processing(current_time, self.batch_id)
         # 此处均为正在处理的长度与数量
+       
         self.length += request.length
         self.num_req += 1
         # 在加入Buffer的时候已经完成数量的更新的包含了buffer里面的数量
@@ -276,11 +277,12 @@ class Batch:
         return True
         
 
-    def load_request(self, current_time, request: Request):
-        self.requests.append(request)
-        self.length += request.length
-        request.loading_finished_time = current_time + request.loading_time
-        request.status = 5
+    # def load_request(self, current_time, request: Request):
+    #     self.requests.append(request)
+    #     self.num_req += 1
+    #     self.length += request.length
+    #     request.loading_finished_time = current_time + request.loading_time
+    #     request.status = 5
 
     def find_evil_requests(self, current_time):
         evil_requests = []
@@ -322,3 +324,13 @@ class Batch:
         print("A_arrival: ", self.A_arrival)
         print("F_arrival: ", self.F_arrival)
         print("round_cost: ", self.round_cost)
+
+    def print_debug_information(self):
+        print("Batch ID: {}".format(self.batch_id))
+        print("Satus:{}, Batch size:{}, num_req:{}, num_req_in_buffer: {}".format(self.status, self.batch_size, self.num_req, self.num_buffered_req))
+        test_print_for_request = False
+        if test_print_for_request:
+            for req in self.requests:
+                req.print_debug_information()
+            for req in self.waiting_buffer:
+                req.print_debug_information()

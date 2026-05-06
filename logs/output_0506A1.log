@@ -1,0 +1,13 @@
+Basic number:20000, actually needed:20480
+Traceback (most recent call last):
+  File "/root/AF-simulator/AF-simulator/main.py", line 342, in <module>
+    main()
+    ~~~~^^
+  File "/root/AF-simulator/AF-simulator/main.py", line 270, in main
+    scheduler = BasicScheduler(arranger, servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F)
+  File "/root/AF-simulator/AF-simulator/scheduler.py", line 33, in __init__
+    self.do_initialize_filling()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/root/AF-simulator/AF-simulator/scheduler.py", line 44, in do_initialize_filling
+    raise ValueError("Not enough requests in the buffer to fill all batches")
+ValueError: Not enough requests in the buffer to fill all batches
