@@ -53,7 +53,7 @@ class Request:
         self.alpha_L = alpha_L
         self.beta_L = beta_L
         self.loading_finished_time = -1
-        self.loading_time = self.alpha_L * self.length + self.beta_L
+        # self.loading_time = self.alpha_L * self.length + self.beta_L
         # 初始的request默认已经装填在Batch当中, 不需要load耗时, 但evict之后失去特权
         # 对这些request, 计算时长的时候需要增加初始的load用时
 
@@ -69,6 +69,8 @@ class Request:
             return False
         if self.use_min_length_limit and self.length < self.min_length_limit:
             return True
+        elif self.use_target_length and self.length < self.target_length:
+            return True   # 强制继续到 target
         # Agent 使用
         elif self.use_fixed_final_length:
             #print("Fixed final length: {}".format(self.fixed_final_length))
@@ -118,7 +120,7 @@ class Request:
         self.completion_time = t
 
     def prepare_for_eviction(self):
-        self.prepare_for_eviction = True
+        self.marked_eviction = True
 
     def loading_to_Batch_buffer(self, current_time):
         # if self.status == 0:

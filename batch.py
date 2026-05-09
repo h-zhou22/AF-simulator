@@ -189,7 +189,7 @@ class Batch:
 
     def do_new_round(self, current_time, stats):
         self.collect_makespan(current_time)
-        for request in self.requests:
+        for request in list(self.requests):
             flag = request.do_new_round(current_time, stats)
             if flag:
                 self.length += 1
@@ -198,7 +198,7 @@ class Batch:
         for request in self.waiting_buffer:
             # 将还在处于更新状态的request进行更新
             if request.status == 5:
-                if request.loading_finished_time >= current_time:
+                if request.loading_finished_time <= current_time:
                     request.status = 1
             else:
                 assert(request.status == 1)
@@ -239,7 +239,7 @@ class Batch:
             self.A2F_transmission(current_time, alpha_T, beta_T)
     
     def append_requests_from_waiting_buffer(self, current_time):
-        for request in self.waiting_buffer:
+        for request in list(self.waiting_buffer):
             if request.status == 5:
                 continue
             elif request.status == 1:

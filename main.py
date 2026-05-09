@@ -103,8 +103,10 @@ def main():
 
     memory_capacity = args.server_capacity
     use_prediction_agent = args.prediction_agent
+    arranger_type = args.arranger
+    generator_type = args.generator
 
-    if arranger < 2:
+    if arranger_type < 2:
         for idx in range(num_servers):
             batches: Dict[int, Batch] = {}
             for i in range(num_batch):
@@ -119,7 +121,7 @@ def main():
             servers.append(server)
     else:
         """配置multi-type server和batch的长度分布情况"""
-        if generator >= 2:
+        if generator_type >= 2:
             short_round_server_cnt = num_servers//8
             short_server_cnt = num_servers//8
             middle_server_cnt = num_servers//4
@@ -267,6 +269,130 @@ def main():
                         server.dynamic_matching = True
                 servers.append(server)
                 server_id += 1
+        else:
+            short_round_server_cnt = num_servers//8
+            short_server_cnt = num_servers//8
+            middle_server_cnt = num_servers//4
+            long_server_cnt = num_servers//4
+            long_mix_server_cnt = num_servers//4
+            normal_server_cnt = num_servers - short_round_server_cnt - middle_server_cnt - short_server_cnt - long_server_cnt - longest_server_cnt
+            assert normal_server_cnt >= 0
+            server_id = 0
+            for _ in range(short_round_server_cnt):
+                    new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch_A
+                    new_batch.served_type = 4
+                    new_batch.batch_size = 64
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+
+                    new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch_B
+                    new_batch.served_type = 5
+                    new_batch.batch_size = 64
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+
+                    server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
+                    if args.FFN_type == 4:
+                        server.dynamic_matching = True
+                    servers.append(server)
+                    server_id += 1
+
+            for _ in range(short_server_cnt):
+                for j in range(num_batch):
+                    new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch
+                    new_batch.served_type = 0
+                    new_batch.batch_size = 256
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+                
+                server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
+                if args.FFN_type == 4:
+                        server.dynamic_matching = True
+                servers.append(server)
+                server_id += 1
+
+            for _ in range(middle_server_cnt):
+                for j in range(num_batch):
+                    new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch
+                    new_batch.served_type = 1
+                    new_batch.batch_size = 128
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+                
+                server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
+                if args.FFN_type == 4:
+                        server.dynamic_matching = True
+                servers.append(server)
+                server_id += 1
+
+            for _ in range(long_server_cnt):
+                    new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch_A
+                    new_batch.served_type = 2
+                    new_batch.batch_size = 64
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+
+                    new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch_B
+                    new_batch.served_type = 7
+                    new_batch.batch_size = 64
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+
+                    server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
+                    if args.FFN_type == 4:
+                            server.dynamic_matching = True
+                    servers.append(server)
+                    server_id += 1
+
+            for _ in range(long_mix_server_cnt):
+                    new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch_A
+                    new_batch.served_type = 2
+                    new_batch.batch_size = 64
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+
+                    new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch_B
+                    new_batch.served_type = 6
+                    new_batch.batch_size = 128
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+
+                    server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
+                    if args.FFN_type == 4:
+                            server.dynamic_matching = True
+                    servers.append(server)
+                    server_id += 1
+
+            for _ in range(normal_server_cnt):
+                for j in range(num_batch):
+                    new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
+                    batches[batch_id] =  new_batch
+                    new_batch.served_type = -1
+                    new_batch.batch_size = 64
+                    new_batch.server_id = server_id
+                    stored_batches[batch_id] = new_batch
+                    batch_id += 1
+                server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
+                if args.FFN_type == 4:
+                        server.dynamic_matching = True
+                servers.append(server)
+                server_id += 1
 
 
     generator_seed = 4
@@ -311,6 +437,19 @@ def main():
             alpha_L= args.alpha_L,
             beta_L= args.beta_L
         )
+    elif args.generator == 3:
+         generator = Multitype_Agent_Generator(
+            next_token_prob= args.next_token_prob,
+            seed= generator_seed,
+            agent_seed= agent_seed,
+            rate=args.gen_prob,
+            max_length=args.max_prompt_len,
+            num_per_cyc= args.gen_req_per_cyc,
+            maximal_generation = args.maximal_generation,
+            basic_length=args.basic_num,
+            alpha_L= args.alpha_L,
+            beta_L= args.beta_L
+        ) 
     else:
         raise NotImplementedError("Not Implemented Yet in generator.py")
 

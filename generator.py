@@ -84,7 +84,7 @@ class PredictionAgent:
         request.predictable = self.rng.random() < self.p
         if request.predictable:
             actual_type = self._get_actual_type()
-            target_length = self._get_target_length(actual_type)
+            target_length = self._get_target_length(actual_type, request.original_len)
             request.actual_type = actual_type 
             self.rework_request(request, target_length)
         
@@ -106,30 +106,30 @@ class PredictionAgent:
             # 可预测则准确，不可预测则 (1-p)*p 概率随机预测最长/最短
             if request.predictable:
                 request.predicted_type = actual_type
-                request.predicted_length = self.reasonable_length_guess(actual_type)
+                request.predicted_length = self.reasonable_length_guess(request.original_len, actual_type)
             else:
                 # 对剩下的request， 以prob p的概率进行随机猜测
                 prob = self.p
                 if self.rng.random() < prob:
                     request.predicted_type = self.rng.choice([1, 2, 3])
-                    request.predicted_length = self.reasonable_length_guess(request.predicted_type)
+                    request.predicted_length = self.reasonable_length_guess(request.original_len, request.predicted_type)
                     
         elif agent_type == 4:
             # 仅对可预测的请求进行准确预测
             if request.predictable:
                 request.predicted_type = actual_type
-                request.predicted_length = self.reasonable_length_guess(actual_type)
+                request.predicted_length = self.reasonable_length_guess(request.original_len, actual_type)
                 
         elif agent_type == 5:
             # 对可预测请求有 80% 准确率
             if request.predictable:
                 if self.rng.random() < 0.8:
                     request.predicted_type = actual_type
-                    request.predicted_length = self.reasonable_length_guess(actual_type)
+                    request.predicted_length = self.reasonable_length_guess(request.original_len, actual_type)
                 else:
                     # 随机选择预测
                     request.predicted_type = self.rng.choice([1, 2, 3, 4])
-                    request.predicted_length = self.reasonable_length_guess(request.predicted_type)
+                    request.predicted_length = self.reasonable_length_guess(request.original_len, request.predicted_type)
 
         return request
     
@@ -443,7 +443,7 @@ class MultitypeRandomGenerator:
         req.req_type = req_type            # 标在 request 上, 方便统计
         req.generated_time = arrival_time
         if self.use_prediction_agent:
-                    self.agent_generator.process_request(req, length)
+                    self.agent_generator.process_request(req)
 
         self.next_request_id += 1
         self.type_counts[req_type - 1] += 1
@@ -497,7 +497,7 @@ class Multitype_Agent_Generator:
     def __init__(self, 
                 next_token_prob: float = 0.99,
                 seed=42, 
-                agent_seed = 42,
+                agent_seed = 44,
                 rate=1, 
                 max_length=4096, 
                 num_per_cyc = 1, 
@@ -544,9 +544,9 @@ class Multitype_Agent_Generator:
             larger_than_1024 = self.rng.random()
             if larger_than_1024 > 0.75:
                 """Usually, self.max_length=4096"""
-                return self.rng.randint(self.max_length/4, self.max_length)
+                return self.rng.randint(self.max_length//4, self.max_length)
             else:
-                return self.rng.randint(1, self.max_length/4)
+                return self.rng.randint(1, self.max_length//4)
         else:
             return self.rng.randint(16384, 32768)
 
@@ -613,7 +613,7 @@ class Multitype_Agent_Generator:
                 new_req.generated_time = global_time
                 if self.use_prediction_agent:
                     if new_req.length < 16384:
-                        self.agent_generator.process_request(new_req, length)
+                        self.agent_generator.process_request(new_req)
                 self.next_request_id += 1
 
                 requests.append(new_req)

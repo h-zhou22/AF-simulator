@@ -45,7 +45,7 @@ class Server:
     # 只判断是否能够装得下
     def judge_capable(self, request: Request)-> bool:
         memory_used = self.compute_memory_usage()
-        if memory_used + request.memory_size > self.memory_capacity:
+        if memory_used + request.length > self.memory_capacity:
             return False
         else:
             return True
@@ -125,7 +125,7 @@ class Server:
         for bid in self.batches:
             if bid == batch_id:
                 continue
-            other_batch = self.batches[batch_id]
+            other_batch = self.batches[bid]
             tot_len += other_batch.length
         batch.other_batch_cost = alpha_A*tot_len + beta_A
         """注意,这里考虑每个server只同时维护两个Batch"""

@@ -36,7 +36,7 @@ class GlobalArranger:
 
     def do_initial_filling(self, batch: Batch):
         while self.num_req_inque and batch.num_req < batch.batch_size:
-            request = self.buffer.pop()
+            request = self.buffer.popleft()
             self.num_req_inque -= 1
             # 注意, 初始的request直接绕开了buffer的程序, 是为了保证模拟的初始化正常
             request.status = 2
@@ -208,7 +208,7 @@ class GreedyArranger:
         """
         A request is evicted from server, add it back to the buffer.
         """
-        heapq.heappush(self.buffer, (request.length, request.rid, request))
+        heapq.heappush(self.buffer, (request.length, request.target_length, request.rid, request))
         self.num_req_inque += 1
         self.num_req_evicted += 1
     
@@ -264,7 +264,7 @@ class MultitypeArranger:
 
     def do_initial_filling(self, batch: Batch):
         if batch.served_type == -1:
-            for qid in (4, 5, 6, 7, 0, 1, 2, 3):
+            for qid in (0, 1, 2, 4, 5, 6, 7, 3):
                 while self.buffer[qid] and batch.num_req < batch.batch_size:
                     request = self.buffer[qid].popleft()
                     request.status = 2
@@ -272,7 +272,67 @@ class MultitypeArranger:
                     self.num_req_inque -= 1
                 if batch.num_req >= batch.batch_size:
                     break
-                
+        elif batch.served_type == 4:
+                qid = 4
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    request.status = 2
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+        elif batch.served_type == 5:
+            for qid in (5, 4):
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    request.status = 2
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+                if batch.num_req >= batch.batch_size:
+                    break
+        elif batch.served_type == 6:
+            for qid in (6, 4):
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    request.status = 2
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+                if batch.num_req >= batch.batch_size:
+                    break
+        elif batch.served_type == 7:
+            for qid in (7, 4):
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    request.status = 2
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+                if batch.num_req >= batch.batch_size:
+                    break
+        elif batch.served_type == 1:
+            for qid in (6, 1, 4):
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    request.status = 2
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+                if batch.num_req >= batch.batch_size:
+                    break
+        elif batch.served_type == 2:
+            for qid in (2, 7, 4, 1, 6):
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    request.status = 2
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+                if batch.num_req >= batch.batch_size:
+                    break
+        elif batch.served_type == 3:
+            for qid in (3, 2, 7):
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    request.status = 2
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+                if batch.num_req >= batch.batch_size:
+                    break
 
     def length_classify(self, request: Request) -> int:
         # 根据现在的长度而非original length进行划分
@@ -292,7 +352,7 @@ class MultitypeArranger:
         L = request.length
         predicted_type = request.predicted_type
         predictor = request.agent_belong
-        if predicted_type <=0 or self.predictor_scores[predictor] <= -5: 
+        if predicted_type <=0 or predictor < 0 or self.predictor_scores[predictor] <= -5: 
             if L <= 1024:
                 return 0
             elif L<=4096:

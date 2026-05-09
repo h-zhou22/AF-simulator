@@ -193,7 +193,7 @@ class PipelineScheduler:
         if self.arranger.num_req_inque < tot_batch_size:
             raise ValueError("Not enough requests in the buffer to fill all batches")
         for batch in self.stored_batches.values():
-            self.arranger.do_initial_filling()
+            self.arranger.do_initial_filling(batch)
     # def do_initialize_filling(self):
     #     print("Buffer size, Need to fill",len(self.buffer),self.num_batches*self.batch_size)
     #     if len(self.buffer) < self.num_batches*self.batch_size:
