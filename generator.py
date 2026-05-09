@@ -548,7 +548,7 @@ class Multitype_Agent_Generator:
             else:
                 return self.rng.randint(1, self.max_length/4)
         else:
-            return self.rng.randint(1024, 2048)
+            return self.rng.randint(16384, 32768)
 
     def do_initial_generation(self):
         requests = []

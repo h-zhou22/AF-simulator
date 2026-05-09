@@ -143,7 +143,7 @@ class GreedyArranger:
 
     def do_initial_filling(self, batch: Batch):
         while self.num_req_inque and batch.num_req < batch.batch_size:
-            request = self.buffer.pop()
+            _, _, rid, request = self.buffer.pop()
             self.num_req_inque -= 1
             # 注意, 初始的request直接绕开了buffer的程序, 是为了保证模拟的初始化正常
             request.status = 2
@@ -153,7 +153,7 @@ class GreedyArranger:
         """
         A new request arrives, add it to the buffer.
         """
-        heapq.heappush(self.buffer, (request.length, request.target_length, request))
+        heapq.heappush(self.buffer, (request.length, request.target_length, request.rid, request))
         self.num_req_inque += 1
         self.num_req_served += 1
 
@@ -215,7 +215,7 @@ class GreedyArranger:
 
     def arrange_requests(self, current_time, allow_further_find: bool = False):
         while self.buffer:
-            _, _, request = self.buffer[0]  # peek shortest request
+            _, _, _, request = self.buffer[0]  # peek shortest request
 
             allocated = self.try_allocation(current_time, request)
             if allocated:
@@ -367,7 +367,7 @@ class MultitypeArranger:
                 continue
             free_memory_capacity = server.memory_capacity - memory_used
             if free_memory_capacity > max_free_capacity:
-                max_free_capacity = server.free_capacity
+                max_free_capacity = free_memory_capacity
                 best_server = server
 
         if best_server is not None:
@@ -382,6 +382,9 @@ class MultitypeArranger:
                         best_batch = batch
             # 注意, 这里都先加入等待区
             # 原先这里的含义是直接加入Batch且保证此时刚好可以一起开始
+            if best_batch is None:
+                print("Server {}, no satisfied batch.".format(best_server.server_id))
+                raise ValueError("Server {}, no satisfied batch.".format(best_server.server_id))
             best_server.load_request_to_batch(current_time,best_batch.batch_id, request)
             return True
         else:
@@ -398,12 +401,10 @@ class MultitypeArranger:
                         break
                 if not flag:
                     continue
-            if server.free_capacity > max_capacity:
-                max_capacity = server.free_capacity
-                # print(server.free_capacity
+            
             free_capacity = server.memory_capacity - server.compute_memory_usage()
             if free_capacity > max_capacity:
-                max_capacity = server.free_capacity
+                max_capacity = free_capacity
         return max_capacity
 
     def arrange_requests(self, current_time, allow_further_find: bool = False) :

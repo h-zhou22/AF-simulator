@@ -5,7 +5,8 @@ from batch import Batch
 from typing import List, Dict, Tuple
 
 class Server:
-    def __init__(self, server_id, num_batches, batch_size, unit_FFN_time, batches: dict[int,Batch], memory_capacity = 960000, dynamic_matching = False):
+    def __init__(self, server_id, num_batches, batch_size, unit_FFN_time, 
+                 batches: dict[int,Batch], memory_capacity = 960000, dynamic_matching = False):
         self.num_batches = num_batches
         self.batches = batches
         self.batch_size = batch_size
