@@ -68,7 +68,7 @@ class BasicScheduler:
                 evicted_requests = server.evict_out_requests(current_time)
                 if evicted_requests:
                     self.arranger.evict_all_requests(evicted_requests)
-            
+                    self.stats.record_eviction(len(evicted_requests)) 
             # available_batches : List[Tuple[int, int, int, int]] = []
             # for server in self.servers:
             #     extend_batches = server.find_available_batch()
@@ -470,6 +470,7 @@ class PipelineScheduler:
                 evicted_requests = server.evict_out_requests(current_time)
                 if evicted_requests:
                     self.arranger.evict_all_requests(evicted_requests)
+                    self.stats.record_eviction(len(evicted_requests)) 
             # available_batches : List[Tuple[int, int, int, int]] = []
             # for server in self.servers:
             #     extend_batches = server.find_available_batch()
@@ -810,7 +811,7 @@ class DynamicScheduler:
         if self.arranger.num_req_inque < tot_batch_size:
             raise ValueError("Not enough requests in the buffer to fill all batches")
         for batch in self.stored_batches.values():
-            self.arranger.do_initial_filling()
+            self.arranger.do_initial_filling(batch)
         
                 # load_request加入之后会立刻开始处理, 所以初始化都用append
 
@@ -826,17 +827,19 @@ class DynamicScheduler:
                 evicted_requests = server.evict_out_requests(current_time)
                 if evicted_requests:
                     self.arranger.evict_all_requests(evicted_requests)
-
+                    self.stats.record_eviction(len(evicted_requests)) 
             # available_batches : List[Tuple[int, int, int, int]] = []
             # for server in self.servers:
             #     # 请注意, 这里假设Batch一般情况下都应该是全满的
             #     extend_batches = server.find_available_batch()
             #     available_batches.extend(extend_batches)
             """打印所有server和Batch的状态"""
-            for server in self.servers:
-                server.print_debug_information()
-            for batch in self.stored_batches.values():
-                batch.print_debug_information()
+            debug_print = False
+            if debug_print:
+                for server in self.servers:
+                    server.print_debug_information()
+                for batch in self.stored_batches.values():
+                    batch.print_debug_information()
             self.arranger.arrange_requests(current_time)
             # while available_batches and self.buffer:
             #     request = self.buffer.pop()

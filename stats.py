@@ -4,241 +4,285 @@ from request import Request
 from batch import Batch
 from collections import defaultdict
 
+
+# ---- 长度桶 (按 original_len) ----
+LENGTH_BUCKETS = ("1-1024", "1025-4096", "4097-8192", ">8192")
+
+def _length_bucket(length):
+    if length <= 1024:
+        return "1-1024"
+    elif length <= 4096:
+        return "1025-4096"
+    elif length <= 8192:
+        return "4097-8192"
+    else:
+        return ">8192"
+
+
 class StatsCollector:
-    def __init__(self, prefix: str=""):
-        self.records = []  
+    def __init__(self, prefix: str = ""):
+        self.records = []
         self.batch_info = []
 
-        self.finished_request = 0   
+        self.finished_request = 0
         self.tot_increase_length = 0
         self.total_generated_tokens = 0
-        
+
         self.total_rounds = 0
         self.total_final_length = 0
         self.total_avg_round_time = 0
-        self.count_avg_round = 0   
-        
+        self.count_avg_round = 0
+
         self.prefix = prefix
         self.output_dir = "result"
-        self.length_distribution = {
-            "1-256": 0,
-            "257-512": 0,
-            "513-1024": 0,
-            "1025-2048": 0,
-            "2049-4096": 0,
-            ">4096": 0
-        }
+        self.length_distribution = {b: 0 for b in LENGTH_BUCKETS}
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.batch_avg_attention = []
-        
+
+        # ---- per-actual_type / per-agent / per-agent_type ----
+        # actual_type ∈ {0,1,2,3,4}, 用 -2 兜底未知 (一般不会发生)
+        self._at_count           = defaultdict(int)
+        self._at_proc_time_sum   = defaultdict(float)   # processing time, 不含排队
+        self._at_total_time_sum  = defaultdict(float)   # total time, 含排队 + evict
+        # agent_id (-1 表示无 agent)
+        self._aid_count          = defaultdict(int)
+        self._aid_proc_time_sum  = defaultdict(float)
+        self._aid_total_time_sum = defaultdict(float)
+        # agent_type (-1 表示无 agent_type)
+        self._atype_count          = defaultdict(int)
+        self._atype_proc_time_sum  = defaultdict(float)
+        self._atype_total_time_sum = defaultdict(float)
+        self._atype_agent_ids      = defaultdict(set)   # 该 type 出现过的 distinct agent_id 集合
+
+        # ---- evict 计数 ----
+        self.total_evict_count = 0     # request-level: 每被 evict 一次 +1
+        # 同一 request 多次被 evict 都各自计入
+
+    # ---- 由 scheduler 在 evict 后调用 ----
+    def record_eviction(self, n: int = 1):
+        self.total_evict_count += n
 
     def record(self, req: Request):
-        """
-        Record statistics for a completed request, with precise semantics:
-        - lifecycle time
-        - eviction statistics
-        - pause time due to eviction
-        - processing time per round
-        """
         record_print = True
         if record_print:
-            print("Finished request: {}, Serverd type:{}, Predicted Type:{}, Cycle:{}".format(self.finished_request, req.actual_type, req.predicted_type, req.completion_time))
-        # -------- 基本完成计数 --------
-        #print("Next token probability:", req.next_token_prob)
-        self.finished_request += 1
-        if req.original_len <= 256:
-            self.length_distribution["1-256"]+=1
-        elif 257 <= req.original_len <= 512:
-            self.length_distribution["257-512"]+=1
-        elif 513 <= req.original_len <= 1024:
-            self.length_distribution["513-1024"]+=1   
-        elif 1025 <= req.original_len <= 2048:
-            self.length_distribution["1025-2048"]+=1
-        elif 2049 <= req.original_len <= 4096:
-            self.length_distribution["2049-4096"]+=1
-        else:
-            self.length_distribution[">4096"]+=1
-        
+            print("Finished request: {}, Actual type:{}, Predicted Type:{}, Cycle:{}".format(
+                self.finished_request, req.actual_type, req.predicted_type, req.completion_time))
 
-        # -------- 生命周期时间 --------
+        self.finished_request += 1
+        bucket = _length_bucket(req.original_len)
+        self.length_distribution[bucket] += 1
+
         increase_length = req.length - req.original_len
         self.tot_increase_length += increase_length
-        if req.arrival is not None and req.completion_time is not None:
-            total_time = req.completion_time - req.start_processing_time
-        else:
-            total_time = None
 
-        if req.rounds > 0 and total_time is not None:
-            avg_time_per_round = total_time / req.rounds
+        # processing time: 不含排队 (从被 batch 接纳到完成)
+        if req.completion_time is not None and req.start_processing_time is not None:
+            proc_time = req.completion_time - req.start_processing_time
         else:
-            avg_time_per_round = None
+            proc_time = None
 
-        # -------- 累计全局统计 --------
+        # total time with queue: 含排队 + evict 间隔 (从生成到完成)
+        gen_t = getattr(req, "generated_time", None)
+        if gen_t is None:
+            gen_t = req.arrival
+        if req.completion_time is not None and gen_t is not None:
+            total_time_q = req.completion_time - gen_t
+        else:
+            total_time_q = None
+
+        avg_time_per_round = (proc_time / req.rounds) if (req.rounds > 0 and proc_time is not None) else None
+
         if req.rounds > 0:
             self.total_generated_tokens += req.rounds
             self.total_rounds += req.rounds
-
         if req.length is not None:
             self.total_final_length += req.length
 
-        # -------- 记录单 request 数据 --------
+        # ---- per-actual_type 累积 ----
+        at = req.actual_type if req.actual_type is not None else -2
+        self._at_count[at] += 1
+        if proc_time is not None:
+            self._at_proc_time_sum[at] += proc_time
+        if total_time_q is not None:
+            self._at_total_time_sum[at] += total_time_q
+
+        # ---- per-agent_id ----
+        aid = getattr(req, "agent_id", None)
+        if aid is None:
+            aid = -1
+        self._aid_count[aid] += 1
+        if proc_time is not None:
+            self._aid_proc_time_sum[aid] += proc_time
+        if total_time_q is not None:
+            self._aid_total_time_sum[aid] += total_time_q
+
+        # ---- per-agent_type ----
+        atype = getattr(req, "agent_belong", -1)
+        if atype is None:
+            atype = -1
+        self._atype_count[atype] += 1
+        if proc_time is not None:
+            self._atype_proc_time_sum[atype] += proc_time
+        if total_time_q is not None:
+            self._atype_total_time_sum[atype] += total_time_q
+        if aid >= 0:
+            self._atype_agent_ids[atype].add(aid)
+
         self.records.append({
             "rid": req.rid,
-
-            # lifecycle
+            "generated_time": gen_t,
             "startal_time": req.start_processing_time,
             "completion_time": req.completion_time,
-            "total_time": total_time,
+            "processing_time": proc_time,            # 不含排队
+            "total_time_with_queue": total_time_q,   # 含排队+evict
             "avg_time_per_round": avg_time_per_round,
-
-            # rounds & processing
             "rounds": req.rounds,
-            
-            # lengths
             "initial_length": req.original_len,
             "final_length": req.length,
-
+            "actual_type": req.actual_type,
+            "predicted_type": req.predicted_type,
+            "agent_id": aid,
+            "agent_type": atype,
         })
 
-        
     def record_batch(self, batch: Batch):
-        rounds = 0
-        tot_cost = 0
-        if len(batch.round_cost)>0:
-            for round_cost in batch.round_cost:
-                rounds += 1
-                tot_cost += round_cost
+        rounds = len(batch.round_cost)
         if rounds == 0:
             batch.print_info()
-            #raise ValueError("rounds == 0") 
-            
-            return    
-        avg_cost = tot_cost/rounds
-        attention_avg_cost = sum(batch.Acost)/len(batch.Acost)
-        attention_weight = attention_avg_cost/batch.FFN_unit_cost
+            return
+
+        tot_cost = sum(batch.round_cost)
+        avg_cost = tot_cost / rounds
+        attention_avg_cost = sum(batch.Acost) / len(batch.Acost) if batch.Acost else 0
+        attention_weight = attention_avg_cost / batch.FFN_unit_cost if batch.FFN_unit_cost else 0
         self.batch_avg_attention.append(attention_weight)
-        self.batch_info.append(
-            {
-                "batch_id": batch.batch_id,
-                "served_requests": batch.ever_served_request,
-                "Attention_avg_cost": attention_avg_cost,
-                # "Acost": batch.Acost,    
-                # "Round_cost": batch.round_cost,
-                "Avg_Round_cost": avg_cost
+        self.batch_info.append({
+            "batch_id": batch.batch_id,
+            "served_type": getattr(batch, "served_type", None),
+            "rounds_run": rounds,
+            "served_requests": batch.ever_served_request,
+            "Attention_avg_cost": attention_avg_cost,
+            "Avg_Round_cost": avg_cost,
+        })
+
+    # ---- summary helpers ----
+    def _build_per_actual_type(self):
+        out = {}
+        for at in sorted(self._at_count.keys()):
+            cnt = self._at_count[at]
+            out[str(at)] = {
+                "count": cnt,
+                "avg_processing_time":     (self._at_proc_time_sum[at] / cnt) if cnt > 0 else None,
+                "avg_total_time_with_queue": (self._at_total_time_sum[at] / cnt) if cnt > 0 else None,
             }
-        )
+        return out
+
+    def _build_per_agent_type(self):
+        out = {}
+        for atype in sorted(self._atype_count.keys()):
+            cnt = self._atype_count[atype]
+            n_agents = len(self._atype_agent_ids[atype])
+            out[str(atype)] = {
+                "count": cnt,
+                "avg_processing_time":       (self._atype_proc_time_sum[atype] / cnt) if cnt > 0 else None,
+                "avg_total_time_with_queue": (self._atype_total_time_sum[atype] / cnt) if cnt > 0 else None,
+                "distinct_agents":   n_agents,
+                "avg_count_per_agent": (cnt / n_agents) if n_agents > 0 else None,
+            }
+        return out
+
+    def _build_per_agent_id(self):
+        # 写入独立文件, 不进 summary
+        out = {}
+        for aid in sorted(self._aid_count.keys()):
+            cnt = self._aid_count[aid]
+            out[str(aid)] = {
+                "count": cnt,
+                "avg_processing_time":       (self._aid_proc_time_sum[aid] / cnt) if cnt > 0 else None,
+                "avg_total_time_with_queue": (self._aid_total_time_sum[aid] / cnt) if cnt > 0 else None,
+            }
+        return out
 
     def summary(self):
-        """
-        Global summary statistics
-        """
         if not self.records:
             return {}
 
-        total_time_sum = 0
-        total_cycle_time_sum = 0
-        cycle_time_count = 0
-
-        # length buckets
-        buckets = {
-            "1-256": [],
-            "257-512": [],
-            "513-1024": [],
-            "1025-2048": [],
-            "2049-4096": [],
-            ">4096": []
-        }
+        proc_time_sum = 0
+        total_q_time_sum = 0
+        per_round_sum = 0
+        per_round_count = 0
+        buckets_proc = {b: [] for b in LENGTH_BUCKETS}
+        buckets_total_q = {b: [] for b in LENGTH_BUCKETS}
 
         for r in self.records:
-            arrival = r["startal_time"]
-            completion = r["completion_time"]
+            proc = r["processing_time"]
+            total_q = r["total_time_with_queue"]
             rounds = r["rounds"]
             init_len = r["initial_length"]
+            bk = _length_bucket(init_len)
+            if proc is not None:
+                proc_time_sum += proc
+                buckets_proc[bk].append(proc)
+                if rounds > 0:
+                    per_round_sum += proc / rounds
+                    per_round_count += 1
+            if total_q is not None:
+                total_q_time_sum += total_q
+                buckets_total_q[bk].append(total_q)
 
-            if completion is None:
-                continue
+        n = self.finished_request
+        avg_proc = proc_time_sum / n if n > 0 else None
+        avg_total_q = total_q_time_sum / n if n > 0 else None
+        avg_per_round = per_round_sum / per_round_count if per_round_count > 0 else None
 
-            total_time = completion - arrival
-            total_time_sum += total_time
+        bucket_avg_proc = {k: (sum(v)/len(v) if v else None) for k, v in buckets_proc.items()}
+        bucket_avg_total_q = {k: (sum(v)/len(v) if v else None) for k, v in buckets_total_q.items()}
 
-            # avg per-cycle time (only if rounds > 0)
-            if rounds > 0:
-                total_cycle_time_sum += total_time / rounds
-                cycle_time_count += 1
+        if self.batch_info:
+            total_batch = len(self.batch_info)
+            batch_round_cost = sum(b["Avg_Round_cost"] for b in self.batch_info) / total_batch
+        else:
+            total_batch = 0
+            batch_round_cost = None
+        batch_attention_cost = (sum(self.batch_avg_attention) / len(self.batch_avg_attention)
+                                if self.batch_avg_attention else None)
 
-            # bucket classification
-            if 1 <= init_len <= 256:
-                buckets["1-256"].append(total_time)
-            elif 257 <= init_len <= 512:
-                buckets["257-512"].append(total_time)
-            elif 513 <= init_len <= 1024:
-                buckets["513-1024"].append(total_time)
-            elif 1025 <= init_len <= 2048:
-                buckets["1025-2048"].append(total_time)
-            elif 2049 <= init_len <= 4096:
-                buckets["2049-4096"].append(total_time)
-            else:
-                buckets[">4096"].append(total_time)
-
-        avg_total_time = total_time_sum / self.finished_request if self.finished_request > 0 else None
-        avg_cycle_time = (
-            total_cycle_time_sum / cycle_time_count
-            if cycle_time_count > 0 else None
-        )
-
-        bucket_avg_time = {
-            k: (sum(v) / len(v) if v else None)
-            for k, v in buckets.items()
-        }
-
-        total_batch = 0
-        batch_round_cost = 0
-        for b in self.batch_info:
-            total_batch += 1
-            batch_round_cost += b["Avg_Round_cost"]
-        batch_round_cost /= total_batch
-
-        batch_attention_cost = sum(self.batch_avg_attention)/len(self.batch_avg_attention)
         return {
             "finished_requests": self.finished_request,
-            #"vip_requests": len(buckets["vip"]),
-            "avg_total_time": avg_total_time,
-            "batch_attention_avg": batch_attention_cost,
-            "avg_time_per_cycle_per_request": avg_cycle_time,
-            "avg_total_time_by_initial_length": bucket_avg_time,
+            "avg_processing_time": avg_proc,                  # 不含排队
+            "avg_total_time_with_queue": avg_total_q,         # 含排队+evict
+            "avg_time_per_cycle_per_request": avg_per_round,
+            "avg_processing_time_by_initial_length": bucket_avg_proc,
+            "avg_total_time_with_queue_by_initial_length": bucket_avg_total_q,
             "finished count": self.length_distribution,
-
+            "batch_attention_avg": batch_attention_cost,
             "num_batches": total_batch,
             "avg_batch_cost": batch_round_cost,
-            
+
+            "total_evict_count": self.total_evict_count,
+            "per_actual_type":  self._build_per_actual_type(),
+            "per_agent_type":   self._build_per_agent_type(),
         }
 
+    # ---- dumps ----
     def dump_batch_info_to_json(self):
-        """将所有 request 记录输出到 JSON 文件"""
-        path = os.path.join(
-            self.output_dir,
-            f"{self.prefix}_batch_info.json"
-        )
+        path = os.path.join(self.output_dir, f"{self.prefix}_batch_info.json")
         with open(path, "w") as f:
             json.dump(self.batch_info, f, indent=2)
 
     def dump_records_to_json(self):
-        """将所有 request 记录输出到 JSON 文件"""
-        path = os.path.join(
-            self.output_dir,
-            f"{self.prefix}_records.json"
-        )
+        path = os.path.join(self.output_dir, f"{self.prefix}_records.json")
         with open(path, "w") as f:
             json.dump(self.records, f, indent=2)
 
+    def dump_per_agent_to_json(self):
+        path = os.path.join(self.output_dir, f"{self.prefix}_per_agent.json")
+        with open(path, "w") as f:
+            json.dump(self._build_per_agent_id(), f, indent=2)
+
     def dump_summary_to_json(self):
-        """将 summary 统计输出到 JSON 文件"""
         summary_data = self.summary()
-        filename = os.path.join(
-            self.output_dir,
-            f"{self.prefix}_summary.json"
-        )
+        filename = os.path.join(self.output_dir, f"{self.prefix}_summary.json")
         with open(filename, "w") as f:
             json.dump(summary_data, f, indent=2)
-

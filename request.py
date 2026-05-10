@@ -73,6 +73,7 @@ class Request:
             if self.length < self.target_length:
                 return True   # 强制继续到 target
             else:
+                self.finish_request(current_time, stats)
                 return False
         # Agent 使用
         elif self.use_fixed_final_length:

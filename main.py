@@ -696,6 +696,7 @@ def main():
     stats.dump_records_to_json()
     stats.dump_summary_to_json()
     stats.dump_batch_info_to_json()
+    stats.dump_per_agent_to_json()
     print("All finished")
 
 if __name__ == "__main__":
