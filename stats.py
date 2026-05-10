@@ -43,7 +43,7 @@ class StatsCollector:
         """
         record_print = True
         if record_print:
-            print("Finished request: {}, Type:{}, Cycle:{}".format(self.finished_request, req.req_type, req.completion_time))
+            print("Finished request: {}, Serverd type:{}, Predicted Type:{}, Cycle:{}".format(self.finished_request, req.actual_type, req.predicted_type, req.completion_time))
         # -------- 基本完成计数 --------
         #print("Next token probability:", req.next_token_prob)
         self.finished_request += 1

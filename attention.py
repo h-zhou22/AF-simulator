@@ -71,7 +71,7 @@ class Server:
                 available_batches.append((batch.num_req, batch.length, batch_id, self.server_id))
         return available_batches
 
-    def cycle_work(self, current_time, stats, FFN_worker=None, alpha_T=0, beta_T=1):
+    def cycle_work(self, current_time, stats, FFN_worker=None, alpha_T=0, beta_T=1, score_table = None):
         for batch_id, batch in self.batches.items():
             # if batch.status == 5: # Waiting for allocation in attention
             #     if self.current_busy == False:
@@ -79,25 +79,25 @@ class Server:
             #         self.current_busy = True
             if batch.status == 3:
                 # 传输时间无需取整
-                if current_time >= batch.current_ending:
+                if batch.is_due(current_time):
                     batch.F2A_transmission_end(current_time)
                     batch.do_new_round(current_time, stats)  # stats is None for now
             elif batch.status == 4: # Waiting for allocation in FFN
                 if self.dynamic_matching:
                     continue
-                if current_time >= batch.current_ending:
+                if batch.is_due(current_time):
                     batch.A2F_transmission_end(current_time)
                     FFN_worker.load_batch(current_time, batch)
                     #batch.FFN_processing(current_time, alpha_F, beta_F)
             elif batch.status == 1:
                 if batch.attention_now:
                     continue # Should be done in attention_work
-                if current_time >= batch.current_ending:
+                if batch.is_due(current_time):
                     #raise Exception("Batch {} in server {} is still in attention".format(batch_id, self.server_id))
                     batch.A2F_transmission(current_time, alpha_T, beta_T)
                     self.current_busy = False
             elif batch.status == 2:
-                if current_time >= batch.current_ending:
+                if batch.is_due(current_time):
                     batch.F2A_transmission(current_time, alpha_T, beta_T)
                     self.first_finished_batch_id = self.last_finished_batch_id
                     self.last_finished_batch_id = batch_id
@@ -184,3 +184,7 @@ class Server:
 
     def print_debug_information(self):
         print("Server ID: {}, server capacity:{}".format(self.server_id, self.memory_capacity))
+        batch_print = True
+        if batch_print:
+            for batch_id, batch in self.batches.items():
+                batch.print_debug_information()

@@ -6,7 +6,7 @@ import random
 import random
 
 class PredictionAgent:
-    def __init__(self, p=0.5, seed=42, type_weight = [0.9, 0.01, 0.01, 0.01, 0.05, 0.02]):
+    def __init__(self, p=0.5, seed=42, type_weight = [0.8, 0.02, 0.02, 0.02, 0.1, 0.04]):
         """
         :param p: request 是可预测 (predictable) 的概率
         :param seed: 固定随机种子确保实验可重复
@@ -89,7 +89,7 @@ class PredictionAgent:
             self.rework_request(request, target_length)
         
         # 3. 模拟 Agent 预测行为
-        request.predicted_type = None
+        request.predicted_type = -1
         
         if agent_type == 0:
             pass # 不进行预测
@@ -148,7 +148,9 @@ class PredictionAgent:
     # 固定轮数的request需清洗其原有的特征 
     def rework_request(self, request: Request, target_length: int):
         new_up_bound = min(4096, target_length-1)
-        new_length = self.rng.randint(1, new_up_bound)
+        new_length = request.original_len
+        if 2<= request.actual_type <= 3:
+            new_length = self.rng.randint(1, new_up_bound)
         request.original_len = new_length
         request.length = new_length
         request.target_length = target_length
@@ -503,7 +505,7 @@ class Multitype_Agent_Generator:
                 num_per_cyc = 1, 
                 maximal_generation = 10000,
                 basic_length = 0,
-                use_prediction_agent = False,
+                use_prediction_agent = True,
                 alpha_L = 1.0,
                 beta_L = 1.0,
                 ):
@@ -558,21 +560,12 @@ class Multitype_Agent_Generator:
                 
                 
                 length = self.generate_length()
-        else:
-            return self.rng.randint(16384, 32768)
-
-    def do_initial_generation(self):
-        requests = []
-        while self.gen_tot < self.basic_length:
-                if self.gen_tot >= self.maximal_generation:
-                    break
-                
-                
-                length = self.generate_length()
-                new_req = Request(rid=self.next_request_id, arrival_time=0, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
+                new_req = Request(rid=self.next_request_id, arrival_time=0, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, use_max_length_limit=False, seed=self.seed)
                 new_req.generated_time = 0
                 self.next_request_id += 1
-
+                if self.use_prediction_agent:
+                    if new_req.length < 16384:
+                        self.agent_generator.process_request(new_req)
                 requests.append(new_req)
                 self.gen_tot += 1
         return requests

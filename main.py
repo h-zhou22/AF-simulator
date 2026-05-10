@@ -1,4 +1,5 @@
 import math
+import time
 import argparse
 from generator import UniformGenerator, UniformRandomGenerator, MultitypeRandomGenerator, Multitype_Agent_Generator
 from attention import Server
@@ -10,6 +11,17 @@ from batch import Batch
 from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler
 from collections import deque
 from arranger import GlobalArranger, GreedyArranger, MultitypeArranger
+
+# main() 内, 在 global_time = 0 之后, 进入 if args.FFN_type == 0/1/3/4 之前
+cycle_times = []                # 每个 cycle 的 wall-clock (秒)
+last_report_cycle = 0
+last_report_wall = time.perf_counter()
+total_wall_start = last_report_wall
+REPORT_EVERY = 1000             # 每多少 cycle 打印一次, 按需调
+
+def _record_cycle_and_maybe_report(global_time, finished_requests):
+    """每个 cycle 末尾调一次. 返回值忽略."""
+    nonlocal_dummy = None  # main 里直接闭包不行, 用全局变量替代见下
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Simulation Experiment Controller")
@@ -128,24 +140,25 @@ def main():
             long_server_cnt = num_servers//8
             long_mix_server_cnt = num_servers//8
             longest_server_cnt = num_servers//4
-            normal_server_cnt = num_servers - short_round_server_cnt - middle_server_cnt - short_server_cnt - long_server_cnt - longest_server_cnt
+            normal_server_cnt = num_servers - short_round_server_cnt - middle_server_cnt - short_server_cnt - long_server_cnt - longest_server_cnt - long_mix_server_cnt
             assert normal_server_cnt >= 0
             server_id = 0
             for _ in range(short_round_server_cnt):
+                    batches: Dict[int, Batch] = {}
                     new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_A
-                    new_batch.served_type = 4
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
-                    stored_batches[batch_id] = new_batch
+                    new_batch_A.served_type = 4
+                    new_batch_A.batch_size = 64
+                    new_batch_A.server_id = server_id
+                    stored_batches[batch_id] = new_batch_A
                     batch_id += 1
 
                     new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_B
-                    new_batch.served_type = 5
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
-                    stored_batches[batch_id] = new_batch
+                    new_batch_B.served_type = 5
+                    new_batch_B.batch_size = 64
+                    new_batch_B.server_id = server_id
+                    stored_batches[batch_id] = new_batch_B
                     batch_id += 1
 
                     server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
@@ -153,8 +166,10 @@ def main():
                         server.dynamic_matching = True
                     servers.append(server)
                     server_id += 1
+                    server.typed_server = True
 
             for _ in range(short_server_cnt):
+                batches: Dict[int, Batch] = {}
                 for j in range(num_batch):
                     new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch
@@ -169,8 +184,10 @@ def main():
                         server.dynamic_matching = True
                 servers.append(server)
                 server_id += 1
+                server.typed_server = True
 
             for _ in range(middle_server_cnt):
+                batches: Dict[int, Batch] = {}
                 for j in range(num_batch):
                     new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch
@@ -185,22 +202,24 @@ def main():
                         server.dynamic_matching = True
                 servers.append(server)
                 server_id += 1
+                server.typed_server = True
 
             for _ in range(longest_server_cnt):
+                    batches: Dict[int, Batch] = {}
                     new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_A
-                    new_batch.served_type = 0
-                    new_batch.batch_size = 256
-                    new_batch.server_id = server_id
-                    stored_batches[batch_id] = new_batch
+                    new_batch_A.served_type = 0
+                    new_batch_A.batch_size = 256
+                    new_batch_A.server_id = server_id
+                    stored_batches[batch_id] = new_batch_A
                     batch_id += 1
 
                     new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_B
-                    new_batch.served_type = 3
-                    new_batch.batch_size = 20
-                    new_batch.server_id = server_id
-                    stored_batches[batch_id] = new_batch
+                    new_batch_B.served_type = 3
+                    new_batch_B.batch_size = 20
+                    new_batch_B.server_id = server_id
+                    stored_batches[batch_id] = new_batch_B
                     batch_id += 1
 
                     server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
@@ -208,22 +227,24 @@ def main():
                             server.dynamic_matching = True
                     servers.append(server)
                     server_id += 1
+                    server.typed_server = True
 
             for _ in range(long_server_cnt):
+                    batches: Dict[int, Batch] = {}
                     new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_A
-                    new_batch.served_type = 2
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
-                    stored_batches[batch_id] = new_batch
+                    new_batch_A.served_type = 2
+                    new_batch_A.batch_size = 64
+                    new_batch_A.server_id = server_id
+                    stored_batches[batch_id] = new_batch_A
                     batch_id += 1
 
                     new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_B
-                    new_batch.served_type = 7
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
-                    stored_batches[batch_id] = new_batch
+                    new_batch_B.served_type = 7
+                    new_batch_B.batch_size = 64
+                    new_batch_B.server_id = server_id
+                    stored_batches[batch_id] = new_batch_B
                     batch_id += 1
 
                     server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
@@ -231,22 +252,24 @@ def main():
                             server.dynamic_matching = True
                     servers.append(server)
                     server_id += 1
+                    server.typed_server = True
 
             for _ in range(long_mix_server_cnt):
+                    batches: Dict[int, Batch] = {}
                     new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_A
-                    new_batch.served_type = 2
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
-                    stored_batches[batch_id] = new_batch
+                    new_batch_A.served_type = 2
+                    new_batch_A.batch_size = 64
+                    new_batch_A.server_id = server_id
+                    stored_batches[batch_id] = new_batch_A
                     batch_id += 1
 
                     new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_B
-                    new_batch.served_type = 6
-                    new_batch.batch_size = 128
-                    new_batch.server_id = server_id
-                    stored_batches[batch_id] = new_batch
+                    new_batch_B.served_type = 6
+                    new_batch_B.batch_size = 128
+                    new_batch_B.server_id = server_id
+                    stored_batches[batch_id] = new_batch_B
                     batch_id += 1
 
                     server = Server(server_id, args.num_batch, batch_size, unit_FFN_time, batches, memory_capacity=memory_capacity)
@@ -254,8 +277,10 @@ def main():
                             server.dynamic_matching = True
                     servers.append(server)
                     server_id += 1
+                    server.typed_server = True
 
             for _ in range(normal_server_cnt):
+                batches: Dict[int, Batch] = {}
                 for j in range(num_batch):
                     new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch
@@ -269,29 +294,31 @@ def main():
                         server.dynamic_matching = True
                 servers.append(server)
                 server_id += 1
+                server.typed_server = True
         else:
             short_round_server_cnt = num_servers//8
             short_server_cnt = num_servers//8
             middle_server_cnt = num_servers//4
             long_server_cnt = num_servers//4
             long_mix_server_cnt = num_servers//4
-            normal_server_cnt = num_servers - short_round_server_cnt - middle_server_cnt - short_server_cnt - long_server_cnt - longest_server_cnt
+            normal_server_cnt = num_servers - short_round_server_cnt - middle_server_cnt - short_server_cnt - long_server_cnt - long_mix_server_cnt
             assert normal_server_cnt >= 0
             server_id = 0
             for _ in range(short_round_server_cnt):
+                    batches: Dict[int, Batch] = {}
                     new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_A
-                    new_batch.served_type = 4
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
+                    new_batch_A.served_type = 4
+                    new_batch_A.batch_size = 64
+                    new_batch_A.server_id = server_id
                     stored_batches[batch_id] = new_batch
                     batch_id += 1
 
                     new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_B
-                    new_batch.served_type = 5
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
+                    new_batch_B.served_type = 5
+                    new_batch_B.batch_size = 64
+                    new_batch_B.server_id = server_id
                     stored_batches[batch_id] = new_batch
                     batch_id += 1
 
@@ -300,8 +327,10 @@ def main():
                         server.dynamic_matching = True
                     servers.append(server)
                     server_id += 1
+                    server.typed_server = True
 
             for _ in range(short_server_cnt):
+                batches: Dict[int, Batch] = {}
                 for j in range(num_batch):
                     new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch
@@ -316,8 +345,10 @@ def main():
                         server.dynamic_matching = True
                 servers.append(server)
                 server_id += 1
+                server.typed_server = True
 
             for _ in range(middle_server_cnt):
+                batches: Dict[int, Batch] = {}
                 for j in range(num_batch):
                     new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch
@@ -332,21 +363,23 @@ def main():
                         server.dynamic_matching = True
                 servers.append(server)
                 server_id += 1
+                server.typed_server = True
 
             for _ in range(long_server_cnt):
+                    batches: Dict[int, Batch] = {}
                     new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_A
-                    new_batch.served_type = 2
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
+                    new_batch_A.served_type = 2
+                    new_batch_A.batch_size = 64
+                    new_batch_A.server_id = server_id
                     stored_batches[batch_id] = new_batch
                     batch_id += 1
 
                     new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_B
-                    new_batch.served_type = 7
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
+                    new_batch_B.served_type = 7
+                    new_batch_B.batch_size = 64
+                    new_batch_B.server_id = server_id
                     stored_batches[batch_id] = new_batch
                     batch_id += 1
 
@@ -355,21 +388,23 @@ def main():
                             server.dynamic_matching = True
                     servers.append(server)
                     server_id += 1
+                    server.typed_server = True
 
             for _ in range(long_mix_server_cnt):
+                    batches: Dict[int, Batch] = {}
                     new_batch_A = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_A
-                    new_batch.served_type = 2
-                    new_batch.batch_size = 64
-                    new_batch.server_id = server_id
+                    new_batch_A.served_type = 2
+                    new_batch_A.batch_size = 64
+                    new_batch_A.server_id = server_id
                     stored_batches[batch_id] = new_batch
                     batch_id += 1
 
                     new_batch_B = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch_B
-                    new_batch.served_type = 6
-                    new_batch.batch_size = 128
-                    new_batch.server_id = server_id
+                    new_batch_B.served_type = 6
+                    new_batch_B.batch_size = 128
+                    new_batch_B.server_id = server_id
                     stored_batches[batch_id] = new_batch
                     batch_id += 1
 
@@ -378,8 +413,10 @@ def main():
                             server.dynamic_matching = True
                     servers.append(server)
                     server_id += 1
+                    server.typed_server = True
 
             for _ in range(normal_server_cnt):
+                batches: Dict[int, Batch] = {}
                 for j in range(num_batch):
                     new_batch = Batch(batch_id, batch_size, unit_FFN_time, use_length_limit, args.batch_max_length)
                     batches[batch_id] =  new_batch
@@ -393,6 +430,7 @@ def main():
                         server.dynamic_matching = True
                 servers.append(server)
                 server_id += 1
+                server.typed_server = True
 
 
     generator_seed = 4
@@ -479,6 +517,8 @@ def main():
     elif args.arranger == 2:
         arranger = MultitypeArranger(servers, costly_loading=costly_loading)
     
+    for batch in stored_batches.values():
+        batch.arranger = arranger
 
     buffer = deque()
     req_inq = 0
@@ -550,6 +590,7 @@ def main():
                     print("Batch current ending: ", stored_batches[j].current_ending)
     # Loop End For Single FFN cases
     elif args.FFN_type == 1:  
+        cyc_t0 = time.perf_counter()
         least_num_to_fill = args.num_batch * args.batch_size 
         if args.basic_num < least_num_to_fill:
             print("Basic num:{}, least to fill:{}".format(args.basic_num, args.num_batch * args.batch_size ))
@@ -561,7 +602,8 @@ def main():
         scheduler = BasicScheduler(arranger, servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F)
         scheduler.match_AF()
         while finished_requests < args.total_request:
-            if global_time % 1000 == 0:
+            time_print = False
+            if global_time % 1000 == 0 and time_print:
                 print("Global Time: ", global_time)
                 print("Finished requests: ", finished_requests)
                 # for batch in stored_batches.values():
@@ -571,9 +613,12 @@ def main():
                 arranger.inqueue_request(req)
 
             scheduler.do_cycle_work(global_time)
+            cycle_times.append(time.perf_counter() - cyc_t0)
             finished_requests = stats.finished_request
             global_time += 1
+
     elif args.FFN_type == 3:
+        cyc_t0 = time.perf_counter()
         least_num_to_fill = args.num_batch * args.batch_size * args.num_server
         if args.basic_num < least_num_to_fill:
             raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
@@ -590,9 +635,12 @@ def main():
                 arranger.inqueue_request(req)
 
             scheduler.do_cycle_work(global_time)
+            cycle_times.append(time.perf_counter() - cyc_t0)
             finished_requests = stats.finished_request
             global_time += 1
+
     elif args.FFN_type == 4:
+        cyc_t0 = time.perf_counter()
         least_num_to_fill = args.num_batch * args.batch_size * args.num_server
         if args.basic_num < least_num_to_fill:
             raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
@@ -608,9 +656,30 @@ def main():
                 arranger.inqueue_request(req)
                 
             scheduler.do_cycle_work(global_time)
+            cycle_times.append(time.perf_counter() - cyc_t0)
             finished_requests = stats.finished_request
             global_time += 1 
 
+    if cycle_times:
+        total_wall = time.perf_counter() - total_wall_start
+        n = len(cycle_times)
+        avg = sum(cycle_times) / n
+        sorted_t = sorted(cycle_times)
+        p50 = sorted_t[n // 2]
+        p95 = sorted_t[int(n * 0.95)]
+        p99 = sorted_t[int(n * 0.99)]
+        print(f"\n=== Cycle timing summary ===")
+        print(f"Total cycles:     {n}")
+        print(f"Total wall:       {total_wall:.2f}s")
+        print(f"Avg per cycle:    {1000*avg:.3f}ms")
+        print(f"p50 / p95 / p99:  {1000*p50:.3f} / {1000*p95:.3f} / {1000*p99:.3f}ms")
+        print(f"Max:              {1000*max(cycle_times):.3f}ms")
+
+        # 按 1000 cycle 一段平均, 看是否随实验进行变慢
+        print(f"\n=== Per-1000-cycle averages (look for trends) ===")
+        for i in range(0, n, 1000):
+            chunk = cycle_times[i:i + 1000]
+            print(f"  cycles {i}-{i+len(chunk)-1}: avg={1000*sum(chunk)/len(chunk):.3f}ms")
     main_print = False
     for batch_id in range(len(stored_batches)):
         if main_print:

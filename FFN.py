@@ -29,7 +29,7 @@ class FFN:
                     return
             self.current_busy = False
         if self.buffer:
-            batch = self.buffer.pop()
+            batch = self.buffer.popleft()
             self.current_ending = batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
             self.current_busy = True
 

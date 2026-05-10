@@ -35,6 +35,7 @@ class Batch:
         self.current_ending = 0 # Time to finish current stage
         self.attention_now = False # Just finish last-round work
         self.doing_FFN = False # Just arrive at FFN instance
+        self.arranger = None
 
         self.round_cost:list[int] = []
         self.A_arrival:list[int] = []
@@ -63,6 +64,11 @@ class Batch:
         self.dynamic_matching = dynamic_matching
 
         self.waiting_buffer = [] # 等待本轮完成后进行load的request
+
+    def is_due(self, current_time) -> bool:
+        """current_ending 落在 [current_time, current_time+1) 内视为本 cycle 到期."""
+        return current_time + 1 > self.current_ending
+
 
     def append_request(self, current_time,  request:Request):
         self.requests.append(request)
@@ -117,6 +123,9 @@ class Batch:
         if self.num_req == 0:
             self.status = 0
             #raise ValueError("Ever reached here")
+        if self.arranger is not None:
+            self.arranger.update_score(request)
+            
         return True
         
     def Attention_processing(self, current_time, alpha_A, beta_A):
@@ -138,12 +147,15 @@ class Batch:
         
         if self.ceiling:
         # 此时开始时间需要取整,总用时对应亦取整
-            current_ending = current_time + current_cost
-            self.current_ending = math.ceil(current_ending)
+            start_processing = current_time
+            end_processing = start_processing + current_cost
+            self.current_ending = math.ceil(end_processing)
             current_cost = self.current_ending - current_time
         else:
         # 此时开始时间可以是float
-            current_ending = current_ending + current_cost
+        # 
+            start_processing = max(current_ending, current_time)
+            end_processing = start_processing + current_cost
             self.current_ending = current_ending
 
         #print("Fcost: ",current_cost)
@@ -189,6 +201,7 @@ class Batch:
 
     def do_new_round(self, current_time, stats):
         self.collect_makespan(current_time)
+        self.append_requests_from_waiting_buffer(current_time)
         for request in list(self.requests):
             flag = request.do_new_round(current_time, stats)
             if flag:
@@ -198,7 +211,7 @@ class Batch:
         for request in self.waiting_buffer:
             # 将还在处于更新状态的request进行更新
             if request.status == 5:
-                if request.loading_finished_time <= current_time:
+                if current_time + 1 > request.loading_finished_time:     # 改
                     request.status = 1
             else:
                 assert(request.status == 1)
@@ -256,6 +269,10 @@ class Batch:
         self.waiting_tot_length += request.length
         self.num_buffered_req += 1
         request.loading_to_Batch_buffer(current_time)
+        test_print = True
+        if test_print:
+            print("Batch {} append request to waiting buffer, time: {}".format(self.batch_id, current_time))
+            #self.print_debug_information()
 
     def map_to_FFN(self, FFN_id, FFN_level):
         self.mapped_FFN_id = FFN_id
@@ -274,6 +291,7 @@ class Batch:
         elif 5<= request_type <= 7:
             if (request_type-self.served_type) % 5 != 0:
                 return False
+                
         return True
         
 
@@ -326,7 +344,7 @@ class Batch:
         print("round_cost: ", self.round_cost)
 
     def print_debug_information(self):
-        print("Batch ID: {}".format(self.batch_id))
+        print("Batch ID: {}, served type: {}, ever served req:{}".format(self.batch_id, self.served_type, self.ever_served_request))
         print("Satus:{}, Batch size:{}, num_req:{}, num_req_in_buffer: {}".format(self.status, self.batch_size, self.num_req, self.num_buffered_req))
         test_print_for_request = False
         if test_print_for_request:

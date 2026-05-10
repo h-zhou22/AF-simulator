@@ -129,6 +129,9 @@ class GlobalArranger:
                         break
                 if not allocated:
                     break
+    def update_score(self, request: Request):
+        """非 multitype arranger 不维护 score_table, 此处空实现保持接口一致."""
+        pass
 
 class GreedyArranger:
     def __init__(self, servers, costly_loading: bool = False):
@@ -224,6 +227,9 @@ class GreedyArranger:
             else:
                 # shortest one cannot be allocated → no need to try longer ones
                 break
+    def update_score(self, request: Request):
+        """非 multitype arranger 不维护 score_table, 此处空实现保持接口一致."""
+        pass
 
 class MultitypeArranger:
     """
@@ -306,6 +312,15 @@ class MultitypeArranger:
                     self.num_req_inque -= 1
                 if batch.num_req >= batch.batch_size:
                     break
+        elif batch.served_type == 0:
+            for qid in (5, 0, 4):
+                while self.buffer[qid] and batch.num_req < batch.batch_size:
+                    request = self.buffer[qid].popleft()
+                    request.status = 2
+                    batch.load_request(0, request)
+                    self.num_req_inque -= 1
+                if batch.num_req >= batch.batch_size:
+                    break
         elif batch.served_type == 1:
             for qid in (6, 1, 4):
                 while self.buffer[qid] and batch.num_req < batch.batch_size:
@@ -352,6 +367,7 @@ class MultitypeArranger:
         L = request.length
         predicted_type = request.predicted_type
         predictor = request.agent_belong
+        #print("Type {}, predictor: {}, score: {}".format(predicted_type, predictor, self.predictor_scores[predictor]))
         if predicted_type <=0 or predictor < 0 or self.predictor_scores[predictor] <= -5: 
             if L <= 1024:
                 return 0
@@ -422,6 +438,13 @@ class MultitypeArranger:
                         break
                 if not flag:
                     continue
+            else:
+                for batch in server.batches.values():
+                    if batch.has_free_slot(current_time):
+                        flag = True
+                        break
+                if not flag:
+                    continue
             memory_used = server.compute_memory_usage()    
             if server.memory_capacity < request.length + memory_used:
                 continue
@@ -443,8 +466,10 @@ class MultitypeArranger:
             # 注意, 这里都先加入等待区
             # 原先这里的含义是直接加入Batch且保证此时刚好可以一起开始
             if best_batch is None:
+                print("Request length {}, qid {}, type {}".format(request.length, qid, request.predicted_type))
                 print("Server {}, no satisfied batch.".format(best_server.server_id))
-                raise ValueError("Server {}, no satisfied batch.".format(best_server.server_id))
+                server.print_debug_information()
+                raise ValueError("No satisfied batch.")
             best_server.load_request_to_batch(current_time,best_batch.batch_id, request)
             return True
         else:
@@ -489,6 +514,46 @@ class MultitypeArranger:
                     #     break
                     continue
                 allocated = False
+
+    def update_score(self, request: Request):
+        """request 完成时调用. 仅对 predicted_type > 0 的更新对应 agent 分数."""
+        predicted_type = request.predicted_type
+        if predicted_type is None or predicted_type <= 0:
+            return
+        agent_id = request.agent_belong
+        if agent_id is None or agent_id < 0:
+            return
+
+        final_length = request.length
+        original_len = request.original_len
+
+        # 判定预测是否准确: final_length 落在该 type 的合理区间内
+        if predicted_type == 1:
+            # 短: 增长 ≤ 20
+            ok = (final_length - original_len) <= 20
+        elif predicted_type == 2:
+            # 中短: 总长 ≤ 1024
+            ok = final_length <= 1024
+        elif predicted_type == 3:
+            # 中: 1024 < 总长 ≤ 4096
+            ok = 1024 < final_length <= 4096
+        elif predicted_type == 4:
+            # 长: 增长达到 4096 量级 (允许 ±tolerance, 你定)
+            # 因为 type 4 在 PredictionAgent 里是 origin_len + 4096 固定生成
+            ok = 4096 < final_length <= 8192
+        else:
+            # 未知 type, 不计分
+            return
+
+        if ok:
+            self.predictor_scores[agent_id] += 1
+        else:
+            self.predictor_scores[agent_id] -= 1
+
+    def print_multitype_queue_info(self):
+        print("Multitype server queue info:")
+        for qid in range(8):
+            print("Queue {} length: {}".format(qid, len(self.buffer[qid])))
         
 # class Multitype_server_Arranger:
 #     def __init__(self, servers, costly_loading: bool = False, vip_arrangement: bool = False):

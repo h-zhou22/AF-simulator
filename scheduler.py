@@ -36,6 +36,9 @@ class BasicScheduler:
         
 
     def do_initialize_filling(self):
+        multi_print = True
+        if multi_print:
+            self.arranger.print_multitype_queue_info()
         tot_batch_size = 0
         for batch in self.stored_batches.values():
             tot_batch_size += batch.batch_size
@@ -71,6 +74,8 @@ class BasicScheduler:
             #     extend_batches = server.find_available_batch()
             #     available_batches.extend(extend_batches)
             test_print_debug = False
+            if current_time % 1000 == 0:
+                test_print_debug = True
             if test_print_debug:
                 print("Cycle: {}".format(current_time))
                 # if current_time > 1:
@@ -770,7 +775,7 @@ class BatchQueue:
 
 class DynamicScheduler:
 # AF之间固定匹配不再更改
-    def __init__(self, arranger, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=False):
+    def __init__(self, arranger, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
         self.servers = servers
         self.arranger = arranger
         self.buffer = buffer
@@ -796,6 +801,9 @@ class DynamicScheduler:
         self.batch_queue = BatchQueue(num_queues=10)
 
     def do_initialize_filling(self):
+        multi_print = True
+        if multi_print:
+            self.arranger.print_multitype_queue_info()
         tot_batch_size = 0
         for batch in self.stored_batches.values():
             tot_batch_size += batch.batch_size

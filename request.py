@@ -69,8 +69,11 @@ class Request:
             return False
         if self.use_min_length_limit and self.length < self.min_length_limit:
             return True
-        elif self.use_target_length and self.length < self.target_length:
-            return True   # 强制继续到 target
+        elif self.use_target_length :
+            if self.length < self.target_length:
+                return True   # 强制继续到 target
+            else:
+                return False
         # Agent 使用
         elif self.use_fixed_final_length:
             #print("Fixed final length: {}".format(self.fixed_final_length))
@@ -88,6 +91,7 @@ class Request:
                 self.finish_request(current_time, stats)
                 return False
         elif self.use_max_length_limit and self.length >= self.max_possible_length:
+            print("Max possible length: {}, Length:{}, Use max limitations:{}".format(self.max_possible_length, self.length, self.use_max_length_limit))
             self.finish_request(current_time, stats)
             return False
         elif self.rng.random() < self.next_token_prob:
@@ -101,7 +105,19 @@ class Request:
 
     def finish_request(self, current_time, stats):
         self.completion_time = current_time
-        print("Request {} finished at time {}".format(self.rid, current_time))
+        print("Request {} finished at time {}, org length {}, length {}".format(self.rid, current_time, self.original_len, self.length))
+        print("Actual type {}, Predicted type {}".format(self.actual_type, self.predicted_type))
+        self.status = 4
+        self.finished = True
+
+        self.count_statistics(stats)
+
+    def start_processing(self, current_time, batch_id):
+        self.start_processing_time = current_time
+        self.batch_id = batch_id
+
+    def count_statistics(self, stats):
+        # information collecion
         self.status = 4
         self.finished = True
 
@@ -133,7 +149,7 @@ class Request:
 
     def print_debug_information(self):
         print("Request ID: {}, Length: {}, Original length: {}, Rounds:{} ".format(self.rid, self.length, self.original_len,self.rounds))
-        print("Batch: {}, Agent type:{}, Predicted type:{}, Status:{}".format(self.batch_id, self.req_type, self.predicted_type, self.status))
+        print("Batch: {}, Agent type:{}, Predicted type:{}, Status:{}".format(self.batch_id, self.actual_type, self.predicted_type, self.status))
 
     
     
