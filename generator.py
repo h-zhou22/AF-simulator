@@ -6,7 +6,7 @@ import random
 import random
 
 class PredictionAgent:
-    def __init__(self, p=0.5, seed=42, type_weight = [0.8, 0.02, 0.02, 0.02, 0.1, 0.04]):
+    def __init__(self, p=0.5, seed=42, type_weight = [0.6, 0.04, 0.04, 0.04, 0.2, 0.08]):
         """
         :param p: request 是可预测 (predictable) 的概率
         :param seed: 固定随机种子确保实验可重复
@@ -20,21 +20,21 @@ class PredictionAgent:
         生成 agent_id 并根据新的权重分配类型 (Modulo 100)
         """
         # 生成 0-1000 之间的随机数
-        agent_id = self.rng.randint(0, 1000)
+        agent_id = self.rng.randint(0, 199)
         remainder = agent_id % 100
         
         # 根据余数区间分配类型，对应权重: 0.9, 0.01, 0.01, 0.01, 0.05, 0.02
-        if 0 <= remainder <= 79:
+        if 0 <= remainder <= 59:
             agent_type = 0
-        elif 80 <= remainder <= 81:
+        elif 60 <= remainder <= 63:
             agent_type = 1
-        elif 82<= remainder <= 83:
+        elif 64<= remainder <= 67:
             agent_type = 2
-        elif 84<= remainder <= 85:
+        elif 68<= remainder <= 71:
             agent_type = 3
-        elif 86 <= remainder <= 95:
+        elif 72 <= remainder <= 91:
             agent_type = 4
-        else: # 98-99
+        else: # 92-99
             agent_type = 5
             
         return agent_id, agent_type
@@ -111,7 +111,7 @@ class PredictionAgent:
                 # 对剩下的request， 以prob p的概率进行随机猜测
                 prob = self.p
                 if self.rng.random() < prob:
-                    request.predicted_type = self.rng.choice([1, 2, 3])
+                    request.predicted_type = self.rng.choice([1, 2, 3, 4])
                     request.predicted_length = self.reasonable_length_guess(request.original_len, request.predicted_type)
                     
         elif agent_type == 4:
@@ -502,12 +502,13 @@ class Multitype_Agent_Generator:
                 agent_seed = 44,
                 rate=1, 
                 max_length=4096, 
-                num_per_cyc = 1, 
+                num_per_cyc = 20, 
                 maximal_generation = 10000,
                 basic_length = 0,
                 use_prediction_agent = True,
                 alpha_L = 1.0,
                 beta_L = 1.0,
+                is_MoE = False
                 ):
         """
         :param rate: 每多少个 cycle 生成一个 request（例如 rate=5 表示每 5 cycle 生成一个）
@@ -536,6 +537,7 @@ class Multitype_Agent_Generator:
         assert self.basic_length <= self.maximal_generation
         predictable_probability = 0.5
         self.agent_generator = PredictionAgent(p=predictable_probability, seed = agent_seed)
+        self.is_MoE = is_MoE
 
     def generate_length(self):
         """

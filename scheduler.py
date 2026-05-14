@@ -1,11 +1,12 @@
 import random
+import heapq
 import math
 from request import Request
 from batch import Batch
 from attention import Server
 from typing import List, Dict, Tuple
 from collections import defaultdict, deque
-from FFN import FFN, dynamic_FFN
+from FFN import FFN, dynamic_FFN, MoEFFN
 from arranger import GlobalArranger, GreedyArranger, MultitypeArranger
 from dataclasses import dataclass
 
@@ -196,6 +197,7 @@ class PipelineScheduler:
         for batch in self.stored_batches.values():
             tot_batch_size += batch.batch_size
         if self.arranger.num_req_inque < tot_batch_size:
+            print("Requests needed: {}".format(tot_batch_size))
             raise ValueError("Not enough requests in the buffer to fill all batches")
         for batch in self.stored_batches.values():
             self.arranger.do_initial_filling(batch)
@@ -512,15 +514,15 @@ class PipelineScheduler:
     def apply_swap_pair(self, current_time: int, server_id_a: int, server_id_b: int):
         """交换两个 server 各自维护的两个 batch 所归属的 FFN.
         只负责交换,关于Batch交换后状态的维护需要额外的逻辑进行处理"""
-        print("We Swap! Cycle: ",current_time)
-        raise NotImplementedError("Not Swap Has been applied! ")
+        print("Swap {} and {}, Cycle: {}".format(server_id_a, server_id_b, current_time))
+        #raise NotImplementedError("Not Swap Has been applied! ")
         server_a = self.servers[server_id_a]
         server_b = self.servers[server_id_b]
         ffn_id_a = self.AF_match[server_id_a]
         ffn_id_b = self.AF_match[server_id_b]
         if ffn_id_a == ffn_id_b:
             return   # 同一 FFN, 不需要 swap
-
+        print("FFN IDa:{}, FFN IDb:{}".format(ffn_id_a, ffn_id_b))
         ffn_a = self.FFN_workers[ffn_id_a]
         ffn_b = self.FFN_workers[ffn_id_b]
 
@@ -721,7 +723,8 @@ class PipelineScheduler:
         server.reactivate_batches(current_time, self.alpha_A, self.beta_A,
                                 self.alpha_T, self.beta_T)
 
-class BatchQueue:
+class BatchTypedQueue:
+    # 随着FFN周期进行migrate的原队列方案，现已不用
     def __init__(self, num_queues=10):
         # 注意, 队列数量应保证比Batch的最大权重(即AF处理时间比)大
         self.num_queues = num_queues
@@ -774,6 +777,48 @@ class BatchQueue:
         for i, q in enumerate(self.queues):
             print(f"Q[{i}]: {len(q)}")
 
+class BatchQueue:
+    """
+    存放等待 FFN 处理的 batch. 用最小堆按 slack (紧迫度) 排序.
+
+    slack = T_other_attention - T_self_FFN
+      表示: 我可以再等多久才开始 FFN, 仍能和同 server 另一 batch 的 attention 完成时刻对齐.
+      slack 越小 (或越负) 越紧迫.
+
+    add_batch 时计算并入堆;
+    worker_step 时弹出 slack 最小的 batch 给 FFN.
+    """
+
+    def __init__(self):
+        self.heap = []                  # (slack, tiebreak, batch)
+        self._counter = 0               # tiebreak: 相同 slack 时按入堆顺序 (FIFO)
+        self.num_batch_inq = 0
+
+    def add_batch(self, current_time: int, batch: Batch, alpha_F: float, beta_F: float):
+        """加入新 batch. batch.other_batch_cost 已由 compute_other_batch_cost 写好."""
+        own_ffn_cost = alpha_F * max(batch.num_req, 1) + beta_F
+        slack = batch.other_batch_cost - own_ffn_cost
+        begin_time = current_time + slack
+        self._counter += 1
+        heapq.heappush(self.heap, (begin_time, self._counter, batch))
+        self.num_batch_inq += 1
+
+    def worker_step(self, current_time: int, FFN_worker: FFN) -> bool:
+        """worker 取一个最紧迫 (slack 最小) 的 batch 给 FFN. 返回是否成功取到."""
+        if not self.heap:
+            return False
+        _slack, _tb, batch = heapq.heappop(self.heap)
+        self.num_batch_inq -= 1
+        FFN_worker.load_batch(current_time, batch)
+        return True
+
+    def print_status(self, current_time):
+        print(f"Cycle {current_time}: num_batch_inq = {self.num_batch_inq}")
+        if self.heap:
+            slacks = sorted(s for s, _, _ in self.heap)
+            print(f"  slack range: [{slacks[0]:.2f}, {slacks[-1]:.2f}], "
+                  f"median: {slacks[len(slacks)//2]:.2f}")
+
 class DynamicScheduler:
 # AF之间固定匹配不再更改
     def __init__(self, arranger, servers:List[Server], FFN_workers:List[FFN], stats, buffer, stored_batches:Dict[int, Batch], alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
@@ -799,7 +844,7 @@ class DynamicScheduler:
         if self.initially_full:
             self.do_initialize_filling()
         
-        self.batch_queue = BatchQueue(num_queues=10)
+        self.batch_queue = BatchQueue()
 
     def do_initialize_filling(self):
         multi_print = True
@@ -809,6 +854,7 @@ class DynamicScheduler:
         for batch in self.stored_batches.values():
             tot_batch_size += batch.batch_size
         if self.arranger.num_req_inque < tot_batch_size:
+            print("Requests needed: {}".format(tot_batch_size))
             raise ValueError("Not enough requests in the buffer to fill all batches")
         for batch in self.stored_batches.values():
             self.arranger.do_initial_filling(batch)
@@ -866,7 +912,7 @@ class DynamicScheduler:
                     # 更新同组其他Batch的总开销作为自身的权重
                     server_id = batch.server_id
                     self.servers[server_id].compute_other_batch_cost(batch.batch_id, self.alpha_A, self.beta_A)
-                    self.batch_queue.add_batch(current_time, batch)
+                    self.batch_queue.add_batch(current_time, batch, alpha_F=self.alpha_F, beta_F=self.beta_F)
                     # 分配进入合适的队列
             
             # FFN worker从队列中选取Batch
@@ -895,4 +941,106 @@ class DynamicScheduler:
                 server.attention_work(current_time, self.alpha_A, self.beta_A)
             for FFN_worker in self.FFN_workers:
                 FFN_worker.cycle_work(current_time, self.alpha_F, self.beta_F)
-            
+
+            if current_time % 10000 == 0:
+                self.arranger.print_multitype_queue_info()
+
+class MoEScheduler:
+    """
+    MoE 架构调度器. 与 BasicScheduler/DynamicScheduler 的差别:
+    - FFN 阶段不是把整个 batch 给一个 FFN worker, 而是把每个 (request, expert) 任务
+      派发到对应的 expert queue, 由 MoEFFN worker 处理.
+    - 8 个 expert queue, num_FFN 个 worker 均匀分到 8 类.
+    """
+
+    def __init__(self, arranger, servers, FFN_workers, stats, buffer, stored_batches,
+                 alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F,
+                 num_experts=8, initially_full=False, costly_loading=False):
+        self.arranger = arranger
+        self.servers = servers
+        self.FFN_workers = FFN_workers
+        self.stats = stats
+        self.buffer = buffer
+        self.stored_batches = stored_batches
+        self.alpha_A, self.beta_A = alpha_A, beta_A
+        self.alpha_T, self.beta_T = alpha_T, beta_T
+        self.alpha_F, self.beta_F = alpha_F, beta_F
+
+        self.num_experts = num_experts
+        # 8 个 expert queue: (request, batch)
+        self.expert_queues = [deque() for _ in range(num_experts)]
+        # worker 按 expert_id 分桶
+        from collections import defaultdict
+        self.workers_by_expert = defaultdict(list)
+        for w in FFN_workers:
+            assert hasattr(w, 'expert_id'), "MoEScheduler requires MoEFFN workers"
+            self.workers_by_expert[w.expert_id].append(w)
+        # 确保每种 expert 都有 worker
+        for eid in range(num_experts):
+            if not self.workers_by_expert[eid]:
+                raise ValueError(f"No MoEFFN worker for expert {eid}")
+
+        # 跟 BasicScheduler 一致: 初始填满 batch
+        self.initially_full = initially_full
+        if self.initially_full:
+            self.do_initialize_filling()
+
+    def do_initialize_filling(self):
+        # 复用 BasicScheduler 的初始化
+        tot_batch_size = sum(b.batch_size for b in self.stored_batches.values())
+        if self.arranger.num_req_inque < tot_batch_size:
+            print(f"Basic number:{self.arranger.num_req_inque}, "
+                  f"actually needed:{tot_batch_size}")
+        for batch in self.stored_batches.values():
+            self.arranger.do_initial_filling(batch)
+
+    def _dispatch_moe_batch(self, batch):
+        """把一个 batch 拆成 (req, expert) 任务投入 expert queue."""
+        batch.is_MoE_mode = True
+        batch.prepare_moe_dispatch()
+        batch.is_MoE_dispatched = True
+        # batch.status 此时是 6 (A2F 完成, 待 FFN), 改成 2 (FFN 处理中)
+        batch.status = 2
+        for req in batch.requests:
+            for eid in req.expert_ids:
+                self.expert_queues[eid].append((req, batch))
+
+    def do_cycle_work(self, current_time):
+        # Stage 1: server cycle (推进 batch 状态: F2A→A, A2F→6, attention→A2F, FFN→F2A)
+        for server in self.servers:
+            # 注意: 这里 FFN_worker 传 None, 因为 MoE 模式下 Server.cycle_work 的 status==4 分支
+            # 不会调 FFN_worker.load_batch (有 is_MoE_mode 判断)
+            server.cycle_work(current_time, self.stats, None, self.alpha_T, self.beta_T)
+
+        # Stage 2: evict 检查
+        for server in self.servers:
+            if server.compute_memory_usage() > server.memory_capacity + server.dynamic_space:
+                server.evict_requests(current_time)
+            evicted = server.evict_out_requests(current_time)
+            if evicted:
+                self.arranger.evict_all_requests(evicted)
+                self.stats.record_eviction(len(evicted))
+
+        # Stage 3: arrange 新 request 进 batch
+        self.arranger.arrange_requests(current_time)
+
+        # Stage 4: 把刚到达 FFN 端 (status=6) 且未 dispatch 的 batch 派发到 expert queue
+        for batch in self.stored_batches.values():
+            if batch.status == 6 and not batch.is_MoE_dispatched:
+                self._dispatch_moe_batch(batch)
+
+        # Stage 5: 每个 expert 的空闲 worker 取 task
+        for eid in range(self.num_experts):
+            q = self.expert_queues[eid]
+            for w in self.workers_by_expert[eid]:
+                if not w.current_busy and q:
+                    req, batch = q.popleft()
+                    w.load_task(current_time, req, batch)
+
+        # Stage 6: 推进所有 MoE worker
+        for w in self.FFN_workers:
+            w.cycle_work(current_time)
+
+        # Stage 7: attention
+        for server in self.servers:
+            server.attention_work(current_time, self.alpha_A, self.beta_A)  

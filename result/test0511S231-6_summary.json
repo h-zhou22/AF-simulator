@@ -1,0 +1,101 @@
+{
+  "finished_requests": 96000,
+  "avg_processing_time": 164940.8398125,
+  "avg_total_time_with_queue": 302945.23066666664,
+  "avg_time_per_cycle_per_request": 806.8009370082674,
+  "avg_processing_time_by_initial_length": {
+    "1-1024": 166827.0452897548,
+    "1025-4096": 161963.12134246985,
+    "4097-8192": null,
+    ">8192": 144406.26584648303
+  },
+  "avg_total_time_with_queue_by_initial_length": {
+    "1-1024": 314173.7917058726,
+    "1025-4096": 239642.25678987647,
+    "4097-8192": null,
+    ">8192": 424408.3779085317
+  },
+  "finished count": {
+    "1-1024": 72268,
+    "1025-4096": 19993,
+    "4097-8192": 0,
+    ">8192": 3739
+  },
+  "batch_attention_avg": 1.8096787259665088,
+  "num_batches": 380,
+  "avg_batch_cost": 741.2872073717868,
+  "total_evict_count": 0,
+  "per_actual_type": {
+    "0": {
+      "count": 47534,
+      "avg_processing_time": 140585.60859595236,
+      "avg_total_time_with_queue": 323502.4072453402
+    },
+    "1": {
+      "count": 22991,
+      "avg_processing_time": 14716.124787960507,
+      "avg_total_time_with_queue": 105071.6769170545
+    },
+    "2": {
+      "count": 16518,
+      "avg_processing_time": 336655.6222302942,
+      "avg_total_time_with_queue": 431883.7200024216
+    },
+    "3": {
+      "count": 8957,
+      "avg_processing_time": 363124.74154292734,
+      "avg_total_time_with_queue": 463974.6016523389
+    }
+  },
+  "per_agent_type": {
+    "-1": {
+      "count": 3739,
+      "avg_processing_time": 144406.26584648303,
+      "avg_total_time_with_queue": 424408.3779085317,
+      "distinct_agents": 0,
+      "avg_count_per_agent": null
+    },
+    "0": {
+      "count": 34001,
+      "avg_processing_time": 153374.70142054645,
+      "avg_total_time_with_queue": 366305.769565601,
+      "distinct_agents": 120,
+      "avg_count_per_agent": 283.34166666666664
+    },
+    "1": {
+      "count": 11435,
+      "avg_processing_time": 169463.68001749017,
+      "avg_total_time_with_queue": 171609.28919982509,
+      "distinct_agents": 8,
+      "avg_count_per_agent": 1429.375
+    },
+    "2": {
+      "count": 2288,
+      "avg_processing_time": 126436.06206293707,
+      "avg_total_time_with_queue": 325654.58435314684,
+      "distinct_agents": 8,
+      "avg_count_per_agent": 286.0
+    },
+    "3": {
+      "count": 7548,
+      "avg_processing_time": 165607.0492845787,
+      "avg_total_time_with_queue": 258252.4373343932,
+      "distinct_agents": 8,
+      "avg_count_per_agent": 943.5
+    },
+    "4": {
+      "count": 26461,
+      "avg_processing_time": 178118.20373379692,
+      "avg_total_time_with_queue": 279313.51800763386,
+      "distinct_agents": 40,
+      "avg_count_per_agent": 661.525
+    },
+    "5": {
+      "count": 10528,
+      "avg_processing_time": 179445.44861322187,
+      "avg_total_time_with_queue": 284333.43844984804,
+      "distinct_agents": 16,
+      "avg_count_per_agent": 658.0
+    }
+  }
+}

@@ -424,3 +424,40 @@ class dynamic_FFN:
         # 绑定新 batch
         new_batch.mapped_FFN_id = self.worker_id
         # served_num_batches / should_serve_batches 不变 (1-to-1 swap)
+
+class MoEFFN:
+    """单 expert MoE worker. 每次处理一个 (request, expert_id) 任务."""
+
+    def __init__(self, worker_id, expert_id, alpha_F, beta_F):
+        self.worker_id = worker_id
+        self.expert_id = expert_id
+        self.alpha_F = alpha_F
+        self.beta_F = beta_F
+
+        self.current_busy = False
+        self.current_ending = -1
+        self.current_request = None
+        self.current_batch = None
+
+    def load_task(self, current_time, request, batch):
+        assert not self.current_busy
+        self.current_busy = True
+        self.current_request = request
+        self.current_batch = batch
+        cost = self.alpha_F * 1 + self.beta_F
+        self.current_ending = current_time + cost
+
+    def cycle_work(self, current_time, *args, **kwargs):
+        """*args, **kwargs 是为了和 FFN.cycle_work / dynamic_FFN.cycle_work 签名兼容
+        (它们要 alpha_F, beta_F), 但 MoEFFN 在构造时已经 bake 进去, 这里忽略."""
+        if not self.current_busy:
+            return
+        if current_time + 1 <= self.current_ending:
+            return
+        # 完成
+        req = self.current_request
+        batch = self.current_batch
+        batch.on_moe_expert_done(current_time, req)
+        self.current_busy = False
+        self.current_request = None
+        self.current_batch = None

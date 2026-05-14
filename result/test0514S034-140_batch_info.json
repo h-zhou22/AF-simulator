@@ -1,0 +1,3602 @@
+[
+  {
+    "batch_id": 0,
+    "served_type": -1,
+    "rounds_run": 1992,
+    "served_requests": 265,
+    "Attention_avg_cost": 158.32212744606122,
+    "Avg_Round_cost": 317.0778112449799,
+    "Tokens_generated": 124254
+  },
+  {
+    "batch_id": 1,
+    "served_type": -1,
+    "rounds_run": 1992,
+    "served_requests": 223,
+    "Attention_avg_cost": 158.17210235825388,
+    "Avg_Round_cost": 317.17118473895584,
+    "Tokens_generated": 125302
+  },
+  {
+    "batch_id": 2,
+    "served_type": -1,
+    "rounds_run": 1828,
+    "served_requests": 233,
+    "Attention_avg_cost": 151.42122538293216,
+    "Avg_Round_cost": 345.6931072210066,
+    "Tokens_generated": 114508
+  },
+  {
+    "batch_id": 3,
+    "served_type": -1,
+    "rounds_run": 1827,
+    "served_requests": 247,
+    "Attention_avg_cost": 194.14770240700219,
+    "Avg_Round_cost": 345.8062397372742,
+    "Tokens_generated": 113444
+  },
+  {
+    "batch_id": 4,
+    "served_type": -1,
+    "rounds_run": 1921,
+    "served_requests": 243,
+    "Attention_avg_cost": 151.50208116545267,
+    "Avg_Round_cost": 328.90942217595,
+    "Tokens_generated": 120501
+  },
+  {
+    "batch_id": 5,
+    "served_type": -1,
+    "rounds_run": 1920,
+    "served_requests": 250,
+    "Attention_avg_cost": 174.32170744403956,
+    "Avg_Round_cost": 328.9614583333333,
+    "Tokens_generated": 119176
+  },
+  {
+    "batch_id": 6,
+    "served_type": -1,
+    "rounds_run": 1735,
+    "served_requests": 204,
+    "Attention_avg_cost": 184.65437788018434,
+    "Avg_Round_cost": 364.13948126801154,
+    "Tokens_generated": 108777
+  },
+  {
+    "batch_id": 7,
+    "served_type": -1,
+    "rounds_run": 1735,
+    "served_requests": 218,
+    "Attention_avg_cost": 179.29337175792506,
+    "Avg_Round_cost": 364.2397694524496,
+    "Tokens_generated": 108789
+  },
+  {
+    "batch_id": 8,
+    "served_type": -1,
+    "rounds_run": 2024,
+    "served_requests": 268,
+    "Attention_avg_cost": 167.51506172839507,
+    "Avg_Round_cost": 312.08250988142294,
+    "Tokens_generated": 126110
+  },
+  {
+    "batch_id": 9,
+    "served_type": -1,
+    "rounds_run": 2024,
+    "served_requests": 236,
+    "Attention_avg_cost": 142.6395061728395,
+    "Avg_Round_cost": 312.175395256917,
+    "Tokens_generated": 126804
+  },
+  {
+    "batch_id": 10,
+    "served_type": -1,
+    "rounds_run": 1941,
+    "served_requests": 246,
+    "Attention_avg_cost": 152.6091658084449,
+    "Avg_Round_cost": 325.51262235960843,
+    "Tokens_generated": 121791
+  },
+  {
+    "batch_id": 11,
+    "served_type": -1,
+    "rounds_run": 1941,
+    "served_requests": 217,
+    "Attention_avg_cost": 172.4095826893354,
+    "Avg_Round_cost": 325.57650695517776,
+    "Tokens_generated": 121781
+  },
+  {
+    "batch_id": 12,
+    "served_type": -1,
+    "rounds_run": 1661,
+    "served_requests": 205,
+    "Attention_avg_cost": 184.30505415162455,
+    "Avg_Round_cost": 380.35580975316077,
+    "Tokens_generated": 104003
+  },
+  {
+    "batch_id": 13,
+    "served_type": -1,
+    "rounds_run": 1661,
+    "served_requests": 217,
+    "Attention_avg_cost": 196.08007224563517,
+    "Avg_Round_cost": 380.4503311258278,
+    "Tokens_generated": 104225
+  },
+  {
+    "batch_id": 14,
+    "served_type": -1,
+    "rounds_run": 1992,
+    "served_requests": 259,
+    "Attention_avg_cost": 135.6934269944807,
+    "Avg_Round_cost": 317.109437751004,
+    "Tokens_generated": 125057
+  },
+  {
+    "batch_id": 15,
+    "served_type": -1,
+    "rounds_run": 1992,
+    "served_requests": 225,
+    "Attention_avg_cost": 177.64425489212243,
+    "Avg_Round_cost": 317.1962851405622,
+    "Tokens_generated": 124904
+  },
+  {
+    "batch_id": 16,
+    "served_type": -1,
+    "rounds_run": 2002,
+    "served_requests": 258,
+    "Attention_avg_cost": 155.46779830254619,
+    "Avg_Round_cost": 315.5809190809191,
+    "Tokens_generated": 124948
+  },
+  {
+    "batch_id": 17,
+    "served_type": -1,
+    "rounds_run": 2002,
+    "served_requests": 248,
+    "Attention_avg_cost": 159.07792207792207,
+    "Avg_Round_cost": 315.66583416583416,
+    "Tokens_generated": 125008
+  },
+  {
+    "batch_id": 18,
+    "served_type": -1,
+    "rounds_run": 2090,
+    "served_requests": 260,
+    "Attention_avg_cost": 141.01912960306075,
+    "Avg_Round_cost": 302.2985645933014,
+    "Tokens_generated": 131134
+  },
+  {
+    "batch_id": 19,
+    "served_type": -1,
+    "rounds_run": 2089,
+    "served_requests": 194,
+    "Attention_avg_cost": 160.17511961722488,
+    "Avg_Round_cost": 302.35998085208234,
+    "Tokens_generated": 131285
+  },
+  {
+    "batch_id": 20,
+    "served_type": -1,
+    "rounds_run": 2025,
+    "served_requests": 231,
+    "Attention_avg_cost": 156.96493827160495,
+    "Avg_Round_cost": 312.06666666666666,
+    "Tokens_generated": 127137
+  },
+  {
+    "batch_id": 21,
+    "served_type": -1,
+    "rounds_run": 2024,
+    "served_requests": 238,
+    "Attention_avg_cost": 154.96296296296296,
+    "Avg_Round_cost": 312.10869565217394,
+    "Tokens_generated": 126868
+  },
+  {
+    "batch_id": 22,
+    "served_type": -1,
+    "rounds_run": 1715,
+    "served_requests": 202,
+    "Attention_avg_cost": 171.18600583090378,
+    "Avg_Round_cost": 368.4518950437318,
+    "Tokens_generated": 107733
+  },
+  {
+    "batch_id": 23,
+    "served_type": -1,
+    "rounds_run": 1714,
+    "served_requests": 278,
+    "Attention_avg_cost": 196.81049562682216,
+    "Avg_Round_cost": 368.5385064177363,
+    "Tokens_generated": 106484
+  },
+  {
+    "batch_id": 24,
+    "served_type": -1,
+    "rounds_run": 1840,
+    "served_requests": 229,
+    "Attention_avg_cost": 184.77717391304347,
+    "Avg_Round_cost": 343.4347826086956,
+    "Tokens_generated": 115317
+  },
+  {
+    "batch_id": 25,
+    "served_type": -1,
+    "rounds_run": 1839,
+    "served_requests": 263,
+    "Attention_avg_cost": 157.94184782608696,
+    "Avg_Round_cost": 343.5269168026101,
+    "Tokens_generated": 114579
+  },
+  {
+    "batch_id": 26,
+    "served_type": -1,
+    "rounds_run": 1845,
+    "served_requests": 212,
+    "Attention_avg_cost": 145.4409534127844,
+    "Avg_Round_cost": 342.48238482384824,
+    "Tokens_generated": 116077
+  },
+  {
+    "batch_id": 27,
+    "served_type": -1,
+    "rounds_run": 1844,
+    "served_requests": 172,
+    "Attention_avg_cost": 189.84010840108402,
+    "Avg_Round_cost": 342.5970715835141,
+    "Tokens_generated": 116407
+  },
+  {
+    "batch_id": 28,
+    "served_type": -1,
+    "rounds_run": 2022,
+    "served_requests": 255,
+    "Attention_avg_cost": 146.33415719228867,
+    "Avg_Round_cost": 312.3897131552918,
+    "Tokens_generated": 126248
+  },
+  {
+    "batch_id": 29,
+    "served_type": -1,
+    "rounds_run": 2022,
+    "served_requests": 256,
+    "Attention_avg_cost": 164.85608308605342,
+    "Avg_Round_cost": 312.49703264094956,
+    "Tokens_generated": 126102
+  },
+  {
+    "batch_id": 30,
+    "served_type": -1,
+    "rounds_run": 1864,
+    "served_requests": 212,
+    "Attention_avg_cost": 160.68954423592493,
+    "Avg_Round_cost": 338.9522532188841,
+    "Tokens_generated": 117047
+  },
+  {
+    "batch_id": 31,
+    "served_type": -1,
+    "rounds_run": 1864,
+    "served_requests": 242,
+    "Attention_avg_cost": 178.2478540772532,
+    "Avg_Round_cost": 339.02092274678114,
+    "Tokens_generated": 116537
+  },
+  {
+    "batch_id": 32,
+    "served_type": -1,
+    "rounds_run": 1977,
+    "served_requests": 226,
+    "Attention_avg_cost": 151.37108190091,
+    "Avg_Round_cost": 319.5351542741528,
+    "Tokens_generated": 123387
+  },
+  {
+    "batch_id": 33,
+    "served_type": -1,
+    "rounds_run": 1977,
+    "served_requests": 261,
+    "Attention_avg_cost": 166.0485338725986,
+    "Avg_Round_cost": 319.5953464845726,
+    "Tokens_generated": 123626
+  },
+  {
+    "batch_id": 34,
+    "served_type": -1,
+    "rounds_run": 1972,
+    "served_requests": 241,
+    "Attention_avg_cost": 144.04206791687784,
+    "Avg_Round_cost": 320.3047667342799,
+    "Tokens_generated": 123261
+  },
+  {
+    "batch_id": 35,
+    "served_type": -1,
+    "rounds_run": 1972,
+    "served_requests": 246,
+    "Attention_avg_cost": 173.6842372022301,
+    "Avg_Round_cost": 320.41734279918865,
+    "Tokens_generated": 123307
+  },
+  {
+    "batch_id": 36,
+    "served_type": -1,
+    "rounds_run": 2092,
+    "served_requests": 255,
+    "Attention_avg_cost": 141.74773053033923,
+    "Avg_Round_cost": 302.0516252390057,
+    "Tokens_generated": 130692
+  },
+  {
+    "batch_id": 37,
+    "served_type": -1,
+    "rounds_run": 2091,
+    "served_requests": 264,
+    "Attention_avg_cost": 156.45602294455068,
+    "Avg_Round_cost": 302.0985174557628,
+    "Tokens_generated": 130327
+  },
+  {
+    "batch_id": 38,
+    "served_type": -1,
+    "rounds_run": 1889,
+    "served_requests": 242,
+    "Attention_avg_cost": 157.03756613756613,
+    "Avg_Round_cost": 334.51561672842774,
+    "Tokens_generated": 117973
+  },
+  {
+    "batch_id": 39,
+    "served_type": -1,
+    "rounds_run": 1888,
+    "served_requests": 239,
+    "Attention_avg_cost": 176.99894123875066,
+    "Avg_Round_cost": 334.5667372881356,
+    "Tokens_generated": 118029
+  },
+  {
+    "batch_id": 40,
+    "served_type": -1,
+    "rounds_run": 1935,
+    "served_requests": 244,
+    "Attention_avg_cost": 158.83264462809916,
+    "Avg_Round_cost": 326.52299741602064,
+    "Tokens_generated": 121107
+  },
+  {
+    "batch_id": 41,
+    "served_type": -1,
+    "rounds_run": 1934,
+    "served_requests": 261,
+    "Attention_avg_cost": 166.10284237726097,
+    "Avg_Round_cost": 326.6132368148914,
+    "Tokens_generated": 120840
+  },
+  {
+    "batch_id": 42,
+    "served_type": -1,
+    "rounds_run": 1893,
+    "served_requests": 259,
+    "Attention_avg_cost": 169.81520591341078,
+    "Avg_Round_cost": 333.7691494981511,
+    "Tokens_generated": 118461
+  },
+  {
+    "batch_id": 43,
+    "served_type": -1,
+    "rounds_run": 1892,
+    "served_requests": 195,
+    "Attention_avg_cost": 163.83729529846804,
+    "Avg_Round_cost": 333.8673361522199,
+    "Tokens_generated": 118889
+  },
+  {
+    "batch_id": 44,
+    "served_type": -1,
+    "rounds_run": 2059,
+    "served_requests": 227,
+    "Attention_avg_cost": 151.85388349514562,
+    "Avg_Round_cost": 306.8678970373968,
+    "Tokens_generated": 129304
+  },
+  {
+    "batch_id": 45,
+    "served_type": -1,
+    "rounds_run": 2058,
+    "served_requests": 231,
+    "Attention_avg_cost": 153.94269062651773,
+    "Avg_Round_cost": 306.95238095238096,
+    "Tokens_generated": 128910
+  },
+  {
+    "batch_id": 46,
+    "served_type": -1,
+    "rounds_run": 2007,
+    "served_requests": 227,
+    "Attention_avg_cost": 160.73107569721117,
+    "Avg_Round_cost": 314.7140009965122,
+    "Tokens_generated": 125941
+  },
+  {
+    "batch_id": 47,
+    "served_type": -1,
+    "rounds_run": 2007,
+    "served_requests": 240,
+    "Attention_avg_cost": 150.58615537848607,
+    "Avg_Round_cost": 314.79521674140506,
+    "Tokens_generated": 125763
+  },
+  {
+    "batch_id": 48,
+    "served_type": -1,
+    "rounds_run": 1823,
+    "served_requests": 254,
+    "Attention_avg_cost": 171.46052631578948,
+    "Avg_Round_cost": 346.5776193088316,
+    "Tokens_generated": 113683
+  },
+  {
+    "batch_id": 49,
+    "served_type": -1,
+    "rounds_run": 1823,
+    "served_requests": 238,
+    "Attention_avg_cost": 174.81294569391113,
+    "Avg_Round_cost": 346.64838178826113,
+    "Tokens_generated": 114139
+  },
+  {
+    "batch_id": 50,
+    "served_type": -1,
+    "rounds_run": 1868,
+    "served_requests": 185,
+    "Attention_avg_cost": 157.54521134296417,
+    "Avg_Round_cost": 338.2441113490364,
+    "Tokens_generated": 117704
+  },
+  {
+    "batch_id": 51,
+    "served_type": -1,
+    "rounds_run": 1867,
+    "served_requests": 226,
+    "Attention_avg_cost": 180.33137044967881,
+    "Avg_Round_cost": 338.33583288698446,
+    "Tokens_generated": 116521
+  },
+  {
+    "batch_id": 52,
+    "served_type": -1,
+    "rounds_run": 2020,
+    "served_requests": 231,
+    "Attention_avg_cost": 150.29341909945572,
+    "Avg_Round_cost": 312.76633663366334,
+    "Tokens_generated": 126725
+  },
+  {
+    "batch_id": 53,
+    "served_type": -1,
+    "rounds_run": 2020,
+    "served_requests": 256,
+    "Attention_avg_cost": 161.47277227722773,
+    "Avg_Round_cost": 312.84851485148516,
+    "Tokens_generated": 126461
+  },
+  {
+    "batch_id": 54,
+    "served_type": -1,
+    "rounds_run": 1848,
+    "served_requests": 235,
+    "Attention_avg_cost": 162.84253246753246,
+    "Avg_Round_cost": 341.95021645021643,
+    "Tokens_generated": 115453
+  },
+  {
+    "batch_id": 55,
+    "served_type": -1,
+    "rounds_run": 1847,
+    "served_requests": 261,
+    "Attention_avg_cost": 178.38095238095238,
+    "Avg_Round_cost": 342.02815376285866,
+    "Tokens_generated": 115072
+  },
+  {
+    "batch_id": 56,
+    "served_type": -1,
+    "rounds_run": 1970,
+    "served_requests": 217,
+    "Attention_avg_cost": 160.56062912227296,
+    "Avg_Round_cost": 320.6984771573604,
+    "Tokens_generated": 123467
+  },
+  {
+    "batch_id": 57,
+    "served_type": -1,
+    "rounds_run": 1969,
+    "served_requests": 210,
+    "Attention_avg_cost": 159.71065989847716,
+    "Avg_Round_cost": 320.7699339766379,
+    "Tokens_generated": 123758
+  },
+  {
+    "batch_id": 58,
+    "served_type": -1,
+    "rounds_run": 1990,
+    "served_requests": 214,
+    "Attention_avg_cost": 174.02410848819687,
+    "Avg_Round_cost": 317.40854271356784,
+    "Tokens_generated": 124775
+  },
+  {
+    "batch_id": 59,
+    "served_type": -1,
+    "rounds_run": 1990,
+    "served_requests": 262,
+    "Attention_avg_cost": 142.95881466599698,
+    "Avg_Round_cost": 317.49497487437185,
+    "Tokens_generated": 124498
+  },
+  {
+    "batch_id": 60,
+    "served_type": -1,
+    "rounds_run": 2088,
+    "served_requests": 281,
+    "Attention_avg_cost": 128.6764001914792,
+    "Avg_Round_cost": 302.5181992337165,
+    "Tokens_generated": 130876
+  },
+  {
+    "batch_id": 61,
+    "served_type": -1,
+    "rounds_run": 2088,
+    "served_requests": 239,
+    "Attention_avg_cost": 172.46481570129248,
+    "Avg_Round_cost": 302.60392720306515,
+    "Tokens_generated": 130744
+  },
+  {
+    "batch_id": 62,
+    "served_type": -1,
+    "rounds_run": 1858,
+    "served_requests": 239,
+    "Attention_avg_cost": 168.20010758472296,
+    "Avg_Round_cost": 340.09956942949407,
+    "Tokens_generated": 116358
+  },
+  {
+    "batch_id": 63,
+    "served_type": -1,
+    "rounds_run": 1857,
+    "served_requests": 241,
+    "Attention_avg_cost": 171.14101184068892,
+    "Avg_Round_cost": 340.19709208400644,
+    "Tokens_generated": 116543
+  },
+  {
+    "batch_id": 64,
+    "served_type": -1,
+    "rounds_run": 2062,
+    "served_requests": 265,
+    "Attention_avg_cost": 156.1512360639845,
+    "Avg_Round_cost": 306.44568380213383,
+    "Tokens_generated": 128966
+  },
+  {
+    "batch_id": 65,
+    "served_type": -1,
+    "rounds_run": 2061,
+    "served_requests": 262,
+    "Attention_avg_cost": 150.02618816682832,
+    "Avg_Round_cost": 306.52062105773894,
+    "Tokens_generated": 128909
+  },
+  {
+    "batch_id": 66,
+    "served_type": -1,
+    "rounds_run": 2097,
+    "served_requests": 246,
+    "Attention_avg_cost": 136.88941849380362,
+    "Avg_Round_cost": 301.3257033857892,
+    "Tokens_generated": 131519
+  },
+  {
+    "batch_id": 67,
+    "served_type": -1,
+    "rounds_run": 2096,
+    "served_requests": 210,
+    "Attention_avg_cost": 161.91893180734382,
+    "Avg_Round_cost": 301.38645038167937,
+    "Tokens_generated": 131213
+  },
+  {
+    "batch_id": 68,
+    "served_type": -1,
+    "rounds_run": 2005,
+    "served_requests": 246,
+    "Attention_avg_cost": 167.71086739780657,
+    "Avg_Round_cost": 315.04139650872816,
+    "Tokens_generated": 125221
+  },
+  {
+    "batch_id": 69,
+    "served_type": -1,
+    "rounds_run": 2005,
+    "served_requests": 221,
+    "Attention_avg_cost": 145.1086739780658,
+    "Avg_Round_cost": 315.1356608478803,
+    "Tokens_generated": 126270
+  },
+  {
+    "batch_id": 70,
+    "served_type": -1,
+    "rounds_run": 2015,
+    "served_requests": 276,
+    "Attention_avg_cost": 170.96527777777777,
+    "Avg_Round_cost": 313.4942928039702,
+    "Tokens_generated": 126047
+  },
+  {
+    "batch_id": 71,
+    "served_type": -1,
+    "rounds_run": 2015,
+    "served_requests": 203,
+    "Attention_avg_cost": 141.18055555555554,
+    "Avg_Round_cost": 313.5821339950372,
+    "Tokens_generated": 126529
+  },
+  {
+    "batch_id": 72,
+    "served_type": -1,
+    "rounds_run": 1815,
+    "served_requests": 221,
+    "Attention_avg_cost": 181.81167400881057,
+    "Avg_Round_cost": 348.0534435261708,
+    "Tokens_generated": 113920
+  },
+  {
+    "batch_id": 73,
+    "served_type": -1,
+    "rounds_run": 1815,
+    "served_requests": 187,
+    "Attention_avg_cost": 164.2488986784141,
+    "Avg_Round_cost": 348.1487603305785,
+    "Tokens_generated": 113696
+  },
+  {
+    "batch_id": 74,
+    "served_type": -1,
+    "rounds_run": 1914,
+    "served_requests": 244,
+    "Attention_avg_cost": 164.4041775456919,
+    "Avg_Round_cost": 330.0376175548589,
+    "Tokens_generated": 119383
+  },
+  {
+    "batch_id": 75,
+    "served_type": -1,
+    "rounds_run": 1914,
+    "served_requests": 247,
+    "Attention_avg_cost": 165.69905956112854,
+    "Avg_Round_cost": 330.1185997910136,
+    "Tokens_generated": 119948
+  },
+  {
+    "batch_id": 76,
+    "served_type": -1,
+    "rounds_run": 2019,
+    "served_requests": 256,
+    "Attention_avg_cost": 164.1154036651808,
+    "Avg_Round_cost": 313.0019811788014,
+    "Tokens_generated": 125938
+  },
+  {
+    "batch_id": 77,
+    "served_type": -1,
+    "rounds_run": 2018,
+    "served_requests": 220,
+    "Attention_avg_cost": 147.3001485884101,
+    "Avg_Round_cost": 313.0579781962339,
+    "Tokens_generated": 126905
+  },
+  {
+    "batch_id": 78,
+    "served_type": -1,
+    "rounds_run": 1982,
+    "served_requests": 223,
+    "Attention_avg_cost": 168.94651866801212,
+    "Avg_Round_cost": 318.80524722502525,
+    "Tokens_generated": 124795
+  },
+  {
+    "batch_id": 79,
+    "served_type": -1,
+    "rounds_run": 1981,
+    "served_requests": 232,
+    "Attention_avg_cost": 149.617053481332,
+    "Avg_Round_cost": 318.90055527511356,
+    "Tokens_generated": 123818
+  },
+  {
+    "batch_id": 80,
+    "served_type": -1,
+    "rounds_run": 2160,
+    "served_requests": 220,
+    "Attention_avg_cost": 142.3780657103193,
+    "Avg_Round_cost": 292.47685185185185,
+    "Tokens_generated": 135445
+  },
+  {
+    "batch_id": 81,
+    "served_type": -1,
+    "rounds_run": 2160,
+    "served_requests": 249,
+    "Attention_avg_cost": 148.31004164738548,
+    "Avg_Round_cost": 292.5449074074074,
+    "Tokens_generated": 136009
+  },
+  {
+    "batch_id": 82,
+    "served_type": -1,
+    "rounds_run": 1906,
+    "served_requests": 221,
+    "Attention_avg_cost": 168.23544834819089,
+    "Avg_Round_cost": 331.4417628541448,
+    "Tokens_generated": 119170
+  },
+  {
+    "batch_id": 83,
+    "served_type": -1,
+    "rounds_run": 1906,
+    "served_requests": 259,
+    "Attention_avg_cost": 163.17776612480336,
+    "Avg_Round_cost": 331.50419727177336,
+    "Tokens_generated": 119747
+  },
+  {
+    "batch_id": 84,
+    "served_type": -1,
+    "rounds_run": 2094,
+    "served_requests": 243,
+    "Attention_avg_cost": 143.4491646778043,
+    "Avg_Round_cost": 301.67000955109836,
+    "Tokens_generated": 131401
+  },
+  {
+    "batch_id": 85,
+    "served_type": -1,
+    "rounds_run": 2094,
+    "served_requests": 282,
+    "Attention_avg_cost": 155.55656324582338,
+    "Avg_Round_cost": 301.7354345749761,
+    "Tokens_generated": 130636
+  },
+  {
+    "batch_id": 86,
+    "served_type": -1,
+    "rounds_run": 2021,
+    "served_requests": 263,
+    "Attention_avg_cost": 132.05640771895102,
+    "Avg_Round_cost": 312.67293419099457,
+    "Tokens_generated": 126893
+  },
+  {
+    "batch_id": 87,
+    "served_type": -1,
+    "rounds_run": 2020,
+    "served_requests": 262,
+    "Attention_avg_cost": 177.88668975754578,
+    "Avg_Round_cost": 312.76633663366334,
+    "Tokens_generated": 125826
+  },
+  {
+    "batch_id": 88,
+    "served_type": -1,
+    "rounds_run": 2024,
+    "served_requests": 236,
+    "Attention_avg_cost": 129.90864197530865,
+    "Avg_Round_cost": 312.08250988142294,
+    "Tokens_generated": 127175
+  },
+  {
+    "batch_id": 89,
+    "served_type": -1,
+    "rounds_run": 2024,
+    "served_requests": 248,
+    "Attention_avg_cost": 180.74765432098766,
+    "Avg_Round_cost": 312.177371541502,
+    "Tokens_generated": 126300
+  },
+  {
+    "batch_id": 90,
+    "served_type": -1,
+    "rounds_run": 2288,
+    "served_requests": 215,
+    "Attention_avg_cost": 142.71647007426824,
+    "Avg_Round_cost": 276.1840034965035,
+    "Tokens_generated": 144411
+  },
+  {
+    "batch_id": 91,
+    "served_type": -1,
+    "rounds_run": 2287,
+    "served_requests": 261,
+    "Attention_avg_cost": 129.25611888111888,
+    "Avg_Round_cost": 276.24442501093137,
+    "Tokens_generated": 143467
+  },
+  {
+    "batch_id": 92,
+    "served_type": -1,
+    "rounds_run": 1906,
+    "served_requests": 241,
+    "Attention_avg_cost": 163.79811221814367,
+    "Avg_Round_cost": 331.53725078698847,
+    "Tokens_generated": 119390
+  },
+  {
+    "batch_id": 93,
+    "served_type": -1,
+    "rounds_run": 1905,
+    "served_requests": 186,
+    "Attention_avg_cost": 166.9700944386149,
+    "Avg_Round_cost": 331.6115485564304,
+    "Tokens_generated": 119819
+  },
+  {
+    "batch_id": 94,
+    "served_type": -1,
+    "rounds_run": 2200,
+    "served_requests": 245,
+    "Attention_avg_cost": 141.94911403907315,
+    "Avg_Round_cost": 287.1990909090909,
+    "Tokens_generated": 138151
+  },
+  {
+    "batch_id": 95,
+    "served_type": -1,
+    "rounds_run": 2199,
+    "served_requests": 247,
+    "Attention_avg_cost": 142.95090909090908,
+    "Avg_Round_cost": 287.2478399272397,
+    "Tokens_generated": 137435
+  },
+  {
+    "batch_id": 96,
+    "served_type": -1,
+    "rounds_run": 2027,
+    "served_requests": 228,
+    "Attention_avg_cost": 146.4630177514793,
+    "Avg_Round_cost": 311.61618154908734,
+    "Tokens_generated": 127153
+  },
+  {
+    "batch_id": 97,
+    "served_type": -1,
+    "rounds_run": 2027,
+    "served_requests": 201,
+    "Attention_avg_cost": 163.71449704142012,
+    "Avg_Round_cost": 311.68524913665516,
+    "Tokens_generated": 127611
+  },
+  {
+    "batch_id": 98,
+    "served_type": -1,
+    "rounds_run": 2004,
+    "served_requests": 252,
+    "Attention_avg_cost": 151.90423940149626,
+    "Avg_Round_cost": 315.29690618762476,
+    "Tokens_generated": 125794
+  },
+  {
+    "batch_id": 99,
+    "served_type": -1,
+    "rounds_run": 2003,
+    "served_requests": 244,
+    "Attention_avg_cost": 162.6192614770459,
+    "Avg_Round_cost": 315.37393909136296,
+    "Tokens_generated": 126364
+  },
+  {
+    "batch_id": 100,
+    "served_type": -1,
+    "rounds_run": 2108,
+    "served_requests": 253,
+    "Attention_avg_cost": 142.64106211474632,
+    "Avg_Round_cost": 299.646110056926,
+    "Tokens_generated": 132408
+  },
+  {
+    "batch_id": 101,
+    "served_type": -1,
+    "rounds_run": 2108,
+    "served_requests": 279,
+    "Attention_avg_cost": 151.86818397344715,
+    "Avg_Round_cost": 299.73481973434536,
+    "Tokens_generated": 131857
+  },
+  {
+    "batch_id": 102,
+    "served_type": -1,
+    "rounds_run": 1763,
+    "served_requests": 237,
+    "Attention_avg_cost": 179.16392512762337,
+    "Avg_Round_cost": 358.4662507090187,
+    "Tokens_generated": 110088
+  },
+  {
+    "batch_id": 103,
+    "served_type": -1,
+    "rounds_run": 1762,
+    "served_requests": 229,
+    "Attention_avg_cost": 178.87918321043676,
+    "Avg_Round_cost": 358.59591373439275,
+    "Tokens_generated": 110282
+  },
+  {
+    "batch_id": 104,
+    "served_type": -1,
+    "rounds_run": 1926,
+    "served_requests": 252,
+    "Attention_avg_cost": 144.94032174364295,
+    "Avg_Round_cost": 328.0571131879543,
+    "Tokens_generated": 120934
+  },
+  {
+    "batch_id": 105,
+    "served_type": -1,
+    "rounds_run": 1925,
+    "served_requests": 209,
+    "Attention_avg_cost": 181.1656282450675,
+    "Avg_Round_cost": 328.13298701298703,
+    "Tokens_generated": 120714
+  },
+  {
+    "batch_id": 106,
+    "served_type": -1,
+    "rounds_run": 2015,
+    "served_requests": 199,
+    "Attention_avg_cost": 165.92605459057071,
+    "Avg_Round_cost": 313.60198511166254,
+    "Tokens_generated": 126372
+  },
+  {
+    "batch_id": 107,
+    "served_type": -1,
+    "rounds_run": 2014,
+    "served_requests": 258,
+    "Attention_avg_cost": 144.33846153846153,
+    "Avg_Round_cost": 313.68272095332674,
+    "Tokens_generated": 126416
+  },
+  {
+    "batch_id": 108,
+    "served_type": -1,
+    "rounds_run": 2120,
+    "served_requests": 296,
+    "Attention_avg_cost": 153.86745283018868,
+    "Avg_Round_cost": 298.063679245283,
+    "Tokens_generated": 132188
+  },
+  {
+    "batch_id": 109,
+    "served_type": -1,
+    "rounds_run": 2119,
+    "served_requests": 229,
+    "Attention_avg_cost": 143.93537735849057,
+    "Avg_Round_cost": 298.12883435582825,
+    "Tokens_generated": 132957
+  },
+  {
+    "batch_id": 110,
+    "served_type": -1,
+    "rounds_run": 1788,
+    "served_requests": 239,
+    "Attention_avg_cost": 161.42984907769704,
+    "Avg_Round_cost": 353.2673378076063,
+    "Tokens_generated": 111465
+  },
+  {
+    "batch_id": 111,
+    "served_type": -1,
+    "rounds_run": 1788,
+    "served_requests": 259,
+    "Attention_avg_cost": 189.0508664058133,
+    "Avg_Round_cost": 353.3853467561521,
+    "Tokens_generated": 110848
+  },
+  {
+    "batch_id": 112,
+    "served_type": -1,
+    "rounds_run": 2135,
+    "served_requests": 249,
+    "Attention_avg_cost": 137.1310861423221,
+    "Avg_Round_cost": 295.85854800936767,
+    "Tokens_generated": 133627
+  },
+  {
+    "batch_id": 113,
+    "served_type": -1,
+    "rounds_run": 2135,
+    "served_requests": 267,
+    "Attention_avg_cost": 154.4634831460674,
+    "Avg_Round_cost": 295.9311475409836,
+    "Tokens_generated": 133451
+  },
+  {
+    "batch_id": 114,
+    "served_type": -1,
+    "rounds_run": 1943,
+    "served_requests": 235,
+    "Attention_avg_cost": 181.27572016460906,
+    "Avg_Round_cost": 325.1106536284097,
+    "Tokens_generated": 121636
+  },
+  {
+    "batch_id": 115,
+    "served_type": -1,
+    "rounds_run": 1943,
+    "served_requests": 258,
+    "Attention_avg_cost": 141.73199588477365,
+    "Avg_Round_cost": 325.2300566134843,
+    "Tokens_generated": 122055
+  },
+  {
+    "batch_id": 116,
+    "served_type": -1,
+    "rounds_run": 2026,
+    "served_requests": 273,
+    "Attention_avg_cost": 156.13468179575727,
+    "Avg_Round_cost": 311.890918065153,
+    "Tokens_generated": 126422
+  },
+  {
+    "batch_id": 117,
+    "served_type": -1,
+    "rounds_run": 2025,
+    "served_requests": 210,
+    "Attention_avg_cost": 152.3919052319842,
+    "Avg_Round_cost": 311.9451851851852,
+    "Tokens_generated": 126803
+  },
+  {
+    "batch_id": 118,
+    "served_type": -1,
+    "rounds_run": 2204,
+    "served_requests": 242,
+    "Attention_avg_cost": 124.82539682539682,
+    "Avg_Round_cost": 286.67695099818513,
+    "Tokens_generated": 138318
+  },
+  {
+    "batch_id": 119,
+    "served_type": -1,
+    "rounds_run": 2203,
+    "served_requests": 254,
+    "Attention_avg_cost": 158.05535390199637,
+    "Avg_Round_cost": 286.74716295960053,
+    "Tokens_generated": 138390
+  },
+  {
+    "batch_id": 120,
+    "served_type": -1,
+    "rounds_run": 2182,
+    "served_requests": 243,
+    "Attention_avg_cost": 136.60787906550618,
+    "Avg_Round_cost": 289.53391384051326,
+    "Tokens_generated": 137271
+  },
+  {
+    "batch_id": 121,
+    "served_type": -1,
+    "rounds_run": 2182,
+    "served_requests": 253,
+    "Attention_avg_cost": 151.99770957398076,
+    "Avg_Round_cost": 289.5944087992667,
+    "Tokens_generated": 136216
+  },
+  {
+    "batch_id": 122,
+    "served_type": -1,
+    "rounds_run": 1782,
+    "served_requests": 232,
+    "Attention_avg_cost": 198.0964666292765,
+    "Avg_Round_cost": 354.47923681257015,
+    "Tokens_generated": 111323
+  },
+  {
+    "batch_id": 123,
+    "served_type": -1,
+    "rounds_run": 1782,
+    "served_requests": 229,
+    "Attention_avg_cost": 156.38923163208077,
+    "Avg_Round_cost": 354.5662177328844,
+    "Tokens_generated": 111896
+  },
+  {
+    "batch_id": 124,
+    "served_type": -1,
+    "rounds_run": 1825,
+    "served_requests": 190,
+    "Attention_avg_cost": 167.07940854326395,
+    "Avg_Round_cost": 346.2213698630137,
+    "Tokens_generated": 114943
+  },
+  {
+    "batch_id": 125,
+    "served_type": -1,
+    "rounds_run": 1824,
+    "served_requests": 251,
+    "Attention_avg_cost": 179.1578082191781,
+    "Avg_Round_cost": 346.3256578947368,
+    "Tokens_generated": 113935
+  },
+  {
+    "batch_id": 126,
+    "served_type": -1,
+    "rounds_run": 1981,
+    "served_requests": 241,
+    "Attention_avg_cost": 143.00151362260343,
+    "Avg_Round_cost": 318.9535588086825,
+    "Tokens_generated": 124276
+  },
+  {
+    "batch_id": 127,
+    "served_type": -1,
+    "rounds_run": 1981,
+    "served_requests": 254,
+    "Attention_avg_cost": 175.3377082281676,
+    "Avg_Round_cost": 319.017667844523,
+    "Tokens_generated": 123214
+  },
+  {
+    "batch_id": 128,
+    "served_type": -1,
+    "rounds_run": 1894,
+    "served_requests": 259,
+    "Attention_avg_cost": 184.05224274406334,
+    "Avg_Round_cost": 333.5052798310454,
+    "Tokens_generated": 118039
+  },
+  {
+    "batch_id": 129,
+    "served_type": -1,
+    "rounds_run": 1894,
+    "served_requests": 261,
+    "Attention_avg_cost": 147.51767810026385,
+    "Avg_Round_cost": 333.583949313622,
+    "Tokens_generated": 118249
+  },
+  {
+    "batch_id": 130,
+    "served_type": -1,
+    "rounds_run": 1960,
+    "served_requests": 215,
+    "Attention_avg_cost": 173.8668367346939,
+    "Avg_Round_cost": 322.40408163265306,
+    "Tokens_generated": 123108
+  },
+  {
+    "batch_id": 131,
+    "served_type": -1,
+    "rounds_run": 1959,
+    "served_requests": 231,
+    "Attention_avg_cost": 146.70255102040815,
+    "Avg_Round_cost": 322.49310872894335,
+    "Tokens_generated": 122354
+  },
+  {
+    "batch_id": 132,
+    "served_type": -1,
+    "rounds_run": 1835,
+    "served_requests": 204,
+    "Attention_avg_cost": 151.53351498637602,
+    "Avg_Round_cost": 344.3809264305177,
+    "Tokens_generated": 115926
+  },
+  {
+    "batch_id": 133,
+    "served_type": -1,
+    "rounds_run": 1834,
+    "served_requests": 238,
+    "Attention_avg_cost": 191.89046321525885,
+    "Avg_Round_cost": 344.4956379498364,
+    "Tokens_generated": 114306
+  },
+  {
+    "batch_id": 134,
+    "served_type": -1,
+    "rounds_run": 1600,
+    "served_requests": 242,
+    "Attention_avg_cost": 198.1524047470331,
+    "Avg_Round_cost": 394.856875,
+    "Tokens_generated": 99458
+  },
+  {
+    "batch_id": 135,
+    "served_type": -1,
+    "rounds_run": 1599,
+    "served_requests": 207,
+    "Attention_avg_cost": 196.765,
+    "Avg_Round_cost": 395.00500312695436,
+    "Tokens_generated": 99729
+  },
+  {
+    "batch_id": 136,
+    "served_type": -1,
+    "rounds_run": 2048,
+    "served_requests": 250,
+    "Attention_avg_cost": 144.92386530014642,
+    "Avg_Round_cost": 308.50048828125,
+    "Tokens_generated": 128395
+  },
+  {
+    "batch_id": 137,
+    "served_type": -1,
+    "rounds_run": 2048,
+    "served_requests": 257,
+    "Attention_avg_cost": 160.595703125,
+    "Avg_Round_cost": 308.57470703125,
+    "Tokens_generated": 128681
+  },
+  {
+    "batch_id": 138,
+    "served_type": -1,
+    "rounds_run": 1923,
+    "served_requests": 230,
+    "Attention_avg_cost": 168.04781704781703,
+    "Avg_Round_cost": 328.5548621944878,
+    "Tokens_generated": 120473
+  },
+  {
+    "batch_id": 139,
+    "served_type": -1,
+    "rounds_run": 1923,
+    "served_requests": 259,
+    "Attention_avg_cost": 157.76599063962558,
+    "Avg_Round_cost": 328.613104524181,
+    "Tokens_generated": 119989
+  },
+  {
+    "batch_id": 140,
+    "served_type": -1,
+    "rounds_run": 1885,
+    "served_requests": 213,
+    "Attention_avg_cost": 182.79957582184517,
+    "Avg_Round_cost": 335.1145888594165,
+    "Tokens_generated": 118535
+  },
+  {
+    "batch_id": 141,
+    "served_type": -1,
+    "rounds_run": 1885,
+    "served_requests": 221,
+    "Attention_avg_cost": 151.11134676564157,
+    "Avg_Round_cost": 335.1994694960212,
+    "Tokens_generated": 118425
+  },
+  {
+    "batch_id": 142,
+    "served_type": -1,
+    "rounds_run": 2289,
+    "served_requests": 233,
+    "Attention_avg_cost": 140.07423580786025,
+    "Avg_Round_cost": 275.9851463521188,
+    "Tokens_generated": 143473
+  },
+  {
+    "batch_id": 143,
+    "served_type": -1,
+    "rounds_run": 2289,
+    "served_requests": 255,
+    "Attention_avg_cost": 131.41441048034935,
+    "Avg_Round_cost": 276.0493665356051,
+    "Tokens_generated": 143564
+  },
+  {
+    "batch_id": 144,
+    "served_type": -1,
+    "rounds_run": 1999,
+    "served_requests": 291,
+    "Attention_avg_cost": 181.01400700350175,
+    "Avg_Round_cost": 316.136068034017,
+    "Tokens_generated": 125033
+  },
+  {
+    "batch_id": 145,
+    "served_type": -1,
+    "rounds_run": 1998,
+    "served_requests": 233,
+    "Attention_avg_cost": 132.9584792396198,
+    "Avg_Round_cost": 316.22122122122124,
+    "Tokens_generated": 125680
+  },
+  {
+    "batch_id": 146,
+    "served_type": -1,
+    "rounds_run": 1973,
+    "served_requests": 207,
+    "Attention_avg_cost": 143.89356310187532,
+    "Avg_Round_cost": 320.2853522554486,
+    "Tokens_generated": 124194
+  },
+  {
+    "batch_id": 147,
+    "served_type": -1,
+    "rounds_run": 1972,
+    "served_requests": 269,
+    "Attention_avg_cost": 174.84237202230108,
+    "Avg_Round_cost": 320.3803245436105,
+    "Tokens_generated": 122880
+  },
+  {
+    "batch_id": 148,
+    "served_type": -1,
+    "rounds_run": 2142,
+    "served_requests": 274,
+    "Attention_avg_cost": 134.3831077928138,
+    "Avg_Round_cost": 294.98085901027076,
+    "Tokens_generated": 134124
+  },
+  {
+    "batch_id": 149,
+    "served_type": -1,
+    "rounds_run": 2141,
+    "served_requests": 257,
+    "Attention_avg_cost": 157.90196078431373,
+    "Avg_Round_cost": 294.9981317141523,
+    "Tokens_generated": 134161
+  },
+  {
+    "batch_id": 150,
+    "served_type": -1,
+    "rounds_run": 2017,
+    "served_requests": 275,
+    "Attention_avg_cost": 157.402378592666,
+    "Avg_Round_cost": 313.26326227069904,
+    "Tokens_generated": 126037
+  },
+  {
+    "batch_id": 151,
+    "served_type": -1,
+    "rounds_run": 2016,
+    "served_requests": 277,
+    "Attention_avg_cost": 153.8815071888944,
+    "Avg_Round_cost": 313.3467261904762,
+    "Tokens_generated": 125678
+  },
+  {
+    "batch_id": 152,
+    "served_type": -1,
+    "rounds_run": 1820,
+    "served_requests": 230,
+    "Attention_avg_cost": 175.53816584294344,
+    "Avg_Round_cost": 347.03956043956043,
+    "Tokens_generated": 113572
+  },
+  {
+    "batch_id": 153,
+    "served_type": -1,
+    "rounds_run": 1820,
+    "served_requests": 217,
+    "Attention_avg_cost": 170.8610653487095,
+    "Avg_Round_cost": 347.15384615384613,
+    "Tokens_generated": 113709
+  },
+  {
+    "batch_id": 154,
+    "served_type": -1,
+    "rounds_run": 1774,
+    "served_requests": 224,
+    "Attention_avg_cost": 203.60507042253522,
+    "Avg_Round_cost": 356.0772266065389,
+    "Tokens_generated": 110751
+  },
+  {
+    "batch_id": 155,
+    "served_type": -1,
+    "rounds_run": 1774,
+    "served_requests": 219,
+    "Attention_avg_cost": 152.46591549295775,
+    "Avg_Round_cost": 356.15276211950396,
+    "Tokens_generated": 112055
+  },
+  {
+    "batch_id": 156,
+    "served_type": -1,
+    "rounds_run": 2121,
+    "served_requests": 234,
+    "Attention_avg_cost": 136.26814326107447,
+    "Avg_Round_cost": 297.8519566242339,
+    "Tokens_generated": 133576
+  },
+  {
+    "batch_id": 157,
+    "served_type": -1,
+    "rounds_run": 2121,
+    "served_requests": 265,
+    "Attention_avg_cost": 158.63996229971724,
+    "Avg_Round_cost": 297.9203206034889,
+    "Tokens_generated": 132628
+  },
+  {
+    "batch_id": 158,
+    "served_type": -1,
+    "rounds_run": 1906,
+    "served_requests": 231,
+    "Attention_avg_cost": 158.7393812270582,
+    "Avg_Round_cost": 331.46537250786986,
+    "Tokens_generated": 119480
+  },
+  {
+    "batch_id": 159,
+    "served_type": -1,
+    "rounds_run": 1906,
+    "served_requests": 269,
+    "Attention_avg_cost": 172.51364113326338,
+    "Avg_Round_cost": 331.55089192025184,
+    "Tokens_generated": 118776
+  },
+  {
+    "batch_id": 160,
+    "served_type": -1,
+    "rounds_run": 1869,
+    "served_requests": 270,
+    "Attention_avg_cost": 162.4663101604278,
+    "Avg_Round_cost": 338.07169609416803,
+    "Tokens_generated": 116774
+  },
+  {
+    "batch_id": 161,
+    "served_type": -1,
+    "rounds_run": 1868,
+    "served_requests": 198,
+    "Attention_avg_cost": 173.4446227929374,
+    "Avg_Round_cost": 338.1381156316917,
+    "Tokens_generated": 117426
+  },
+  {
+    "batch_id": 162,
+    "served_type": -1,
+    "rounds_run": 1897,
+    "served_requests": 248,
+    "Attention_avg_cost": 172.1559536354057,
+    "Avg_Round_cost": 333.05956773853455,
+    "Tokens_generated": 118653
+  },
+  {
+    "batch_id": 163,
+    "served_type": -1,
+    "rounds_run": 1896,
+    "served_requests": 213,
+    "Attention_avg_cost": 158.7838692672641,
+    "Avg_Round_cost": 333.1450421940928,
+    "Tokens_generated": 118987
+  },
+  {
+    "batch_id": 164,
+    "served_type": -1,
+    "rounds_run": 2018,
+    "served_requests": 243,
+    "Attention_avg_cost": 157.31665014866203,
+    "Avg_Round_cost": 313.14767096134784,
+    "Tokens_generated": 126174
+  },
+  {
+    "batch_id": 165,
+    "served_type": -1,
+    "rounds_run": 2017,
+    "served_requests": 220,
+    "Attention_avg_cost": 154.9440039643211,
+    "Avg_Round_cost": 313.20327218641546,
+    "Tokens_generated": 126744
+  },
+  {
+    "batch_id": 166,
+    "served_type": -1,
+    "rounds_run": 1952,
+    "served_requests": 274,
+    "Attention_avg_cost": 157.15770609318997,
+    "Avg_Round_cost": 323.65829918032784,
+    "Tokens_generated": 122331
+  },
+  {
+    "batch_id": 167,
+    "served_type": -1,
+    "rounds_run": 1952,
+    "served_requests": 243,
+    "Attention_avg_cost": 166.32258064516128,
+    "Avg_Round_cost": 323.73668032786884,
+    "Tokens_generated": 122113
+  },
+  {
+    "batch_id": 168,
+    "served_type": -1,
+    "rounds_run": 2001,
+    "served_requests": 273,
+    "Attention_avg_cost": 154.75374625374624,
+    "Avg_Round_cost": 315.7911044477761,
+    "Tokens_generated": 125293
+  },
+  {
+    "batch_id": 169,
+    "served_type": -1,
+    "rounds_run": 2000,
+    "served_requests": 249,
+    "Attention_avg_cost": 159.93253373313343,
+    "Avg_Round_cost": 315.8565,
+    "Tokens_generated": 125336
+  },
+  {
+    "batch_id": 170,
+    "served_type": -1,
+    "rounds_run": 1942,
+    "served_requests": 241,
+    "Attention_avg_cost": 153.7807514153371,
+    "Avg_Round_cost": 325.4006179196704,
+    "Tokens_generated": 121321
+  },
+  {
+    "batch_id": 171,
+    "served_type": -1,
+    "rounds_run": 1941,
+    "served_requests": 220,
+    "Attention_avg_cost": 169.47219361483008,
+    "Avg_Round_cost": 325.4884080370943,
+    "Tokens_generated": 121985
+  },
+  {
+    "batch_id": 172,
+    "served_type": -1,
+    "rounds_run": 2007,
+    "served_requests": 247,
+    "Attention_avg_cost": 164.14997508719483,
+    "Avg_Round_cost": 314.8789237668162,
+    "Tokens_generated": 125232
+  },
+  {
+    "batch_id": 173,
+    "served_type": -1,
+    "rounds_run": 2006,
+    "served_requests": 256,
+    "Attention_avg_cost": 148.95764823119083,
+    "Avg_Round_cost": 314.9496510468594,
+    "Tokens_generated": 125089
+  },
+  {
+    "batch_id": 174,
+    "served_type": -1,
+    "rounds_run": 1970,
+    "served_requests": 243,
+    "Attention_avg_cost": 146.31608320649417,
+    "Avg_Round_cost": 320.75126903553297,
+    "Tokens_generated": 123584
+  },
+  {
+    "batch_id": 175,
+    "served_type": -1,
+    "rounds_run": 1969,
+    "served_requests": 254,
+    "Attention_avg_cost": 172.9243654822335,
+    "Avg_Round_cost": 320.8395124428644,
+    "Tokens_generated": 122635
+  },
+  {
+    "batch_id": 176,
+    "served_type": -1,
+    "rounds_run": 1849,
+    "served_requests": 221,
+    "Attention_avg_cost": 201.53027027027028,
+    "Avg_Round_cost": 341.7490535424554,
+    "Tokens_generated": 116121
+  },
+  {
+    "batch_id": 177,
+    "served_type": -1,
+    "rounds_run": 1848,
+    "served_requests": 208,
+    "Attention_avg_cost": 139.03948080043267,
+    "Avg_Round_cost": 341.81168831168833,
+    "Tokens_generated": 116706
+  },
+  {
+    "batch_id": 178,
+    "served_type": -1,
+    "rounds_run": 2029,
+    "served_requests": 234,
+    "Attention_avg_cost": 148.26847290640393,
+    "Avg_Round_cost": 311.37949728930505,
+    "Tokens_generated": 127348
+  },
+  {
+    "batch_id": 179,
+    "served_type": -1,
+    "rounds_run": 2029,
+    "served_requests": 242,
+    "Attention_avg_cost": 160.53277476589452,
+    "Avg_Round_cost": 311.4706752094628,
+    "Tokens_generated": 127275
+  },
+  {
+    "batch_id": 180,
+    "served_type": -1,
+    "rounds_run": 1860,
+    "served_requests": 281,
+    "Attention_avg_cost": 182.6963997850618,
+    "Avg_Round_cost": 339.61290322580646,
+    "Tokens_generated": 115544
+  },
+  {
+    "batch_id": 181,
+    "served_type": -1,
+    "rounds_run": 1860,
+    "served_requests": 246,
+    "Attention_avg_cost": 156.05158516926383,
+    "Avg_Round_cost": 339.71505376344084,
+    "Tokens_generated": 116137
+  },
+  {
+    "batch_id": 182,
+    "served_type": -1,
+    "rounds_run": 2075,
+    "served_requests": 221,
+    "Attention_avg_cost": 133.3169556840077,
+    "Avg_Round_cost": 304.4081927710843,
+    "Tokens_generated": 130752
+  },
+  {
+    "batch_id": 183,
+    "served_type": -1,
+    "rounds_run": 2075,
+    "served_requests": 275,
+    "Attention_avg_cost": 169.38728323699422,
+    "Avg_Round_cost": 304.4992771084337,
+    "Tokens_generated": 129947
+  },
+  {
+    "batch_id": 184,
+    "served_type": -1,
+    "rounds_run": 1972,
+    "served_requests": 241,
+    "Attention_avg_cost": 163.58236188545362,
+    "Avg_Round_cost": 320.41430020283974,
+    "Tokens_generated": 123096
+  },
+  {
+    "batch_id": 185,
+    "served_type": -1,
+    "rounds_run": 1971,
+    "served_requests": 280,
+    "Attention_avg_cost": 155.23935091277892,
+    "Avg_Round_cost": 320.49974632166413,
+    "Tokens_generated": 123340
+  },
+  {
+    "batch_id": 186,
+    "served_type": -1,
+    "rounds_run": 1724,
+    "served_requests": 244,
+    "Attention_avg_cost": 193.46028985507246,
+    "Avg_Round_cost": 366.4663573085847,
+    "Tokens_generated": 107503
+  },
+  {
+    "batch_id": 187,
+    "served_type": -1,
+    "rounds_run": 1724,
+    "served_requests": 264,
+    "Attention_avg_cost": 172.44895591647332,
+    "Avg_Round_cost": 366.54524361948955,
+    "Tokens_generated": 107572
+  },
+  {
+    "batch_id": 188,
+    "served_type": -1,
+    "rounds_run": 1861,
+    "served_requests": 228,
+    "Attention_avg_cost": 147.12889366272825,
+    "Avg_Round_cost": 339.46426652337453,
+    "Tokens_generated": 116735
+  },
+  {
+    "batch_id": 189,
+    "served_type": -1,
+    "rounds_run": 1861,
+    "served_requests": 273,
+    "Attention_avg_cost": 190.00161203653948,
+    "Avg_Round_cost": 339.5728103170338,
+    "Tokens_generated": 116028
+  },
+  {
+    "batch_id": 190,
+    "served_type": -1,
+    "rounds_run": 2231,
+    "served_requests": 297,
+    "Attention_avg_cost": 149.05062724014337,
+    "Avg_Round_cost": 283.2115643209323,
+    "Tokens_generated": 138864
+  },
+  {
+    "batch_id": 191,
+    "served_type": -1,
+    "rounds_run": 2230,
+    "served_requests": 250,
+    "Attention_avg_cost": 130.09771402958316,
+    "Avg_Round_cost": 283.2587443946188,
+    "Tokens_generated": 139759
+  },
+  {
+    "batch_id": 192,
+    "served_type": -1,
+    "rounds_run": 2003,
+    "served_requests": 280,
+    "Attention_avg_cost": 157.8666999500749,
+    "Avg_Round_cost": 315.4877683474788,
+    "Tokens_generated": 124782
+  },
+  {
+    "batch_id": 193,
+    "served_type": -1,
+    "rounds_run": 2002,
+    "served_requests": 257,
+    "Attention_avg_cost": 154.81827259111333,
+    "Avg_Round_cost": 315.57142857142856,
+    "Tokens_generated": 125347
+  },
+  {
+    "batch_id": 194,
+    "served_type": -1,
+    "rounds_run": 2011,
+    "served_requests": 257,
+    "Attention_avg_cost": 148.55864811133202,
+    "Avg_Round_cost": 314.1790154152163,
+    "Tokens_generated": 126066
+  },
+  {
+    "batch_id": 195,
+    "served_type": -1,
+    "rounds_run": 2011,
+    "served_requests": 237,
+    "Attention_avg_cost": 164.40626553953257,
+    "Avg_Round_cost": 314.2541024365987,
+    "Tokens_generated": 125703
+  },
+  {
+    "batch_id": 196,
+    "served_type": -1,
+    "rounds_run": 1953,
+    "served_requests": 238,
+    "Attention_avg_cost": 179.3515864892528,
+    "Avg_Round_cost": 323.46338965693803,
+    "Tokens_generated": 122107
+  },
+  {
+    "batch_id": 197,
+    "served_type": -1,
+    "rounds_run": 1953,
+    "served_requests": 224,
+    "Attention_avg_cost": 143.52558853633573,
+    "Avg_Round_cost": 323.552483358935,
+    "Tokens_generated": 122755
+  },
+  {
+    "batch_id": 198,
+    "served_type": -1,
+    "rounds_run": 2148,
+    "served_requests": 257,
+    "Attention_avg_cost": 145.3761638733706,
+    "Avg_Round_cost": 294.21601489757916,
+    "Tokens_generated": 134570
+  },
+  {
+    "batch_id": 199,
+    "served_type": -1,
+    "rounds_run": 2147,
+    "served_requests": 255,
+    "Attention_avg_cost": 147.82355679702047,
+    "Avg_Round_cost": 294.275733581742,
+    "Tokens_generated": 134779
+  },
+  {
+    "batch_id": 200,
+    "served_type": -1,
+    "rounds_run": 2190,
+    "served_requests": 223,
+    "Attention_avg_cost": 147.97581013235964,
+    "Avg_Round_cost": 288.5100456621005,
+    "Tokens_generated": 137665
+  },
+  {
+    "batch_id": 201,
+    "served_type": -1,
+    "rounds_run": 2189,
+    "served_requests": 227,
+    "Attention_avg_cost": 140.33881278538811,
+    "Avg_Round_cost": 288.5829145728643,
+    "Tokens_generated": 137771
+  },
+  {
+    "batch_id": 202,
+    "served_type": -1,
+    "rounds_run": 1888,
+    "served_requests": 258,
+    "Attention_avg_cost": 175.15669666490206,
+    "Avg_Round_cost": 334.66207627118644,
+    "Tokens_generated": 117626
+  },
+  {
+    "batch_id": 203,
+    "served_type": -1,
+    "rounds_run": 1887,
+    "served_requests": 197,
+    "Attention_avg_cost": 158.39353813559322,
+    "Avg_Round_cost": 334.75357710651826,
+    "Tokens_generated": 118664
+  },
+  {
+    "batch_id": 204,
+    "served_type": -1,
+    "rounds_run": 1718,
+    "served_requests": 250,
+    "Attention_avg_cost": 145.08202443280976,
+    "Avg_Round_cost": 367.743888242142,
+    "Tokens_generated": 107900
+  },
+  {
+    "batch_id": 205,
+    "served_type": -1,
+    "rounds_run": 1718,
+    "served_requests": 196,
+    "Attention_avg_cost": 218.804537521815,
+    "Avg_Round_cost": 367.81431897555296,
+    "Tokens_generated": 107401
+  },
+  {
+    "batch_id": 206,
+    "served_type": -1,
+    "rounds_run": 1957,
+    "served_requests": 245,
+    "Attention_avg_cost": 174.09193054136875,
+    "Avg_Round_cost": 322.84619315278485,
+    "Tokens_generated": 122366
+  },
+  {
+    "batch_id": 207,
+    "served_type": -1,
+    "rounds_run": 1957,
+    "served_requests": 232,
+    "Attention_avg_cost": 148.21052631578948,
+    "Avg_Round_cost": 322.91006642820645,
+    "Tokens_generated": 122784
+  },
+  {
+    "batch_id": 208,
+    "served_type": -1,
+    "rounds_run": 1899,
+    "served_requests": 221,
+    "Attention_avg_cost": 156.38263157894738,
+    "Avg_Round_cost": 332.6766719325961,
+    "Tokens_generated": 119862
+  },
+  {
+    "batch_id": 209,
+    "served_type": -1,
+    "rounds_run": 1899,
+    "served_requests": 214,
+    "Attention_avg_cost": 176.2757894736842,
+    "Avg_Round_cost": 332.7451290152712,
+    "Tokens_generated": 118835
+  },
+  {
+    "batch_id": 210,
+    "served_type": -1,
+    "rounds_run": 2201,
+    "served_requests": 295,
+    "Attention_avg_cost": 149.90458882326215,
+    "Avg_Round_cost": 287.09313948205363,
+    "Tokens_generated": 136859
+  },
+  {
+    "batch_id": 211,
+    "served_type": -1,
+    "rounds_run": 2200,
+    "served_requests": 198,
+    "Attention_avg_cost": 134.246251703771,
+    "Avg_Round_cost": 287.1595454545455,
+    "Tokens_generated": 138523
+  },
+  {
+    "batch_id": 212,
+    "served_type": -1,
+    "rounds_run": 2040,
+    "served_requests": 244,
+    "Attention_avg_cost": 160.13718765311123,
+    "Avg_Round_cost": 309.6759803921569,
+    "Tokens_generated": 128056
+  },
+  {
+    "batch_id": 213,
+    "served_type": -1,
+    "rounds_run": 2040,
+    "served_requests": 283,
+    "Attention_avg_cost": 148.78872549019607,
+    "Avg_Round_cost": 309.7740196078431,
+    "Tokens_generated": 127125
+  },
+  {
+    "batch_id": 214,
+    "served_type": -1,
+    "rounds_run": 1949,
+    "served_requests": 302,
+    "Attention_avg_cost": 168.40790148794252,
+    "Avg_Round_cost": 324.24833247819396,
+    "Tokens_generated": 121233
+  },
+  {
+    "batch_id": 215,
+    "served_type": -1,
+    "rounds_run": 1948,
+    "served_requests": 210,
+    "Attention_avg_cost": 154.42072857875834,
+    "Avg_Round_cost": 324.32956878850104,
+    "Tokens_generated": 122817
+  },
+  {
+    "batch_id": 216,
+    "served_type": -1,
+    "rounds_run": 1991,
+    "served_requests": 229,
+    "Attention_avg_cost": 157.98644578313252,
+    "Avg_Round_cost": 317.33802109492717,
+    "Tokens_generated": 124840
+  },
+  {
+    "batch_id": 217,
+    "served_type": -1,
+    "rounds_run": 1991,
+    "served_requests": 252,
+    "Attention_avg_cost": 159.19035660472125,
+    "Avg_Round_cost": 317.41336012054245,
+    "Tokens_generated": 124765
+  },
+  {
+    "batch_id": 218,
+    "served_type": -1,
+    "rounds_run": 1874,
+    "served_requests": 240,
+    "Attention_avg_cost": 173.32693333333333,
+    "Avg_Round_cost": 337.1718249733191,
+    "Tokens_generated": 116879
+  },
+  {
+    "batch_id": 219,
+    "served_type": -1,
+    "rounds_run": 1873,
+    "served_requests": 256,
+    "Attention_avg_cost": 163.84311632870865,
+    "Avg_Round_cost": 337.26855312333157,
+    "Tokens_generated": 117211
+  },
+  {
+    "batch_id": 220,
+    "served_type": -1,
+    "rounds_run": 1939,
+    "served_requests": 227,
+    "Attention_avg_cost": 176.74896907216495,
+    "Avg_Round_cost": 325.83599793708095,
+    "Tokens_generated": 121453
+  },
+  {
+    "batch_id": 221,
+    "served_type": -1,
+    "rounds_run": 1938,
+    "served_requests": 252,
+    "Attention_avg_cost": 148.8081485301702,
+    "Avg_Round_cost": 325.9200206398349,
+    "Tokens_generated": 121356
+  },
+  {
+    "batch_id": 222,
+    "served_type": -1,
+    "rounds_run": 1904,
+    "served_requests": 231,
+    "Attention_avg_cost": 165.51286089238846,
+    "Avg_Round_cost": 331.84453781512605,
+    "Tokens_generated": 119280
+  },
+  {
+    "batch_id": 223,
+    "served_type": -1,
+    "rounds_run": 1903,
+    "served_requests": 270,
+    "Attention_avg_cost": 164.2935924369748,
+    "Avg_Round_cost": 331.95953757225436,
+    "Tokens_generated": 117847
+  },
+  {
+    "batch_id": 224,
+    "served_type": -1,
+    "rounds_run": 2122,
+    "served_requests": 272,
+    "Attention_avg_cost": 148.32454074422986,
+    "Avg_Round_cost": 297.758246936852,
+    "Tokens_generated": 132556
+  },
+  {
+    "batch_id": 225,
+    "served_type": -1,
+    "rounds_run": 2121,
+    "served_requests": 280,
+    "Attention_avg_cost": 145.54901036757775,
+    "Avg_Round_cost": 297.8099952852428,
+    "Tokens_generated": 132740
+  },
+  {
+    "batch_id": 226,
+    "served_type": -1,
+    "rounds_run": 1997,
+    "served_requests": 247,
+    "Attention_avg_cost": 165.03103103103103,
+    "Avg_Round_cost": 316.2914371557336,
+    "Tokens_generated": 125297
+  },
+  {
+    "batch_id": 227,
+    "served_type": -1,
+    "rounds_run": 1997,
+    "served_requests": 282,
+    "Attention_avg_cost": 148.51751751751752,
+    "Avg_Round_cost": 316.3615423134702,
+    "Tokens_generated": 124728
+  },
+  {
+    "batch_id": 228,
+    "served_type": -1,
+    "rounds_run": 2165,
+    "served_requests": 245,
+    "Attention_avg_cost": 151.91643582640813,
+    "Avg_Round_cost": 291.8494226327945,
+    "Tokens_generated": 135741
+  },
+  {
+    "batch_id": 229,
+    "served_type": -1,
+    "rounds_run": 2164,
+    "served_requests": 269,
+    "Attention_avg_cost": 138.6013856812933,
+    "Avg_Round_cost": 291.90203327171906,
+    "Tokens_generated": 135621
+  },
+  {
+    "batch_id": 230,
+    "served_type": -1,
+    "rounds_run": 1870,
+    "served_requests": 253,
+    "Attention_avg_cost": 167.98502673796793,
+    "Avg_Round_cost": 337.903743315508,
+    "Tokens_generated": 116295
+  },
+  {
+    "batch_id": 231,
+    "served_type": -1,
+    "rounds_run": 1869,
+    "served_requests": 231,
+    "Attention_avg_cost": 168.39251336898397,
+    "Avg_Round_cost": 337.99411449973246,
+    "Tokens_generated": 116666
+  },
+  {
+    "batch_id": 232,
+    "served_type": -1,
+    "rounds_run": 2023,
+    "served_requests": 256,
+    "Attention_avg_cost": 158.37302371541503,
+    "Avg_Round_cost": 312.3044982698962,
+    "Tokens_generated": 126889
+  },
+  {
+    "batch_id": 233,
+    "served_type": -1,
+    "rounds_run": 2022,
+    "served_requests": 245,
+    "Attention_avg_cost": 152.2254078101829,
+    "Avg_Round_cost": 312.3684470820969,
+    "Tokens_generated": 126557
+  },
+  {
+    "batch_id": 234,
+    "served_type": -1,
+    "rounds_run": 1869,
+    "served_requests": 243,
+    "Attention_avg_cost": 201.2320855614973,
+    "Avg_Round_cost": 337.99411449973246,
+    "Tokens_generated": 116561
+  },
+  {
+    "batch_id": 235,
+    "served_type": -1,
+    "rounds_run": 1869,
+    "served_requests": 180,
+    "Attention_avg_cost": 135.48181818181817,
+    "Avg_Round_cost": 338.0652755484216,
+    "Tokens_generated": 117937
+  },
+  {
+    "batch_id": 236,
+    "served_type": -1,
+    "rounds_run": 1957,
+    "served_requests": 250,
+    "Attention_avg_cost": 181.15423901940756,
+    "Avg_Round_cost": 322.843638221768,
+    "Tokens_generated": 122052
+  },
+  {
+    "batch_id": 237,
+    "served_type": -1,
+    "rounds_run": 1956,
+    "served_requests": 252,
+    "Attention_avg_cost": 139.9964230965764,
+    "Avg_Round_cost": 322.9120654396728,
+    "Tokens_generated": 123084
+  },
+  {
+    "batch_id": 238,
+    "served_type": -1,
+    "rounds_run": 1843,
+    "served_requests": 210,
+    "Attention_avg_cost": 157.2445770065076,
+    "Avg_Round_cost": 342.78459034183396,
+    "Tokens_generated": 115955
+  },
+  {
+    "batch_id": 239,
+    "served_type": -1,
+    "rounds_run": 1843,
+    "served_requests": 232,
+    "Attention_avg_cost": 185.01898047722344,
+    "Avg_Round_cost": 342.877916440586,
+    "Tokens_generated": 115088
+  },
+  {
+    "batch_id": 240,
+    "served_type": -1,
+    "rounds_run": 1904,
+    "served_requests": 238,
+    "Attention_avg_cost": 154.34068241469816,
+    "Avg_Round_cost": 331.83088235294116,
+    "Tokens_generated": 119628
+  },
+  {
+    "batch_id": 241,
+    "served_type": -1,
+    "rounds_run": 1903,
+    "served_requests": 222,
+    "Attention_avg_cost": 174.04621848739495,
+    "Avg_Round_cost": 331.9164477141356,
+    "Tokens_generated": 118799
+  },
+  {
+    "batch_id": 242,
+    "served_type": -1,
+    "rounds_run": 1895,
+    "served_requests": 248,
+    "Attention_avg_cost": 164.80590717299577,
+    "Avg_Round_cost": 333.4263852242744,
+    "Tokens_generated": 118503
+  },
+  {
+    "batch_id": 243,
+    "served_type": -1,
+    "rounds_run": 1894,
+    "served_requests": 193,
+    "Attention_avg_cost": 167.9825857519789,
+    "Avg_Round_cost": 333.5105596620908,
+    "Tokens_generated": 118968
+  },
+  {
+    "batch_id": 244,
+    "served_type": -1,
+    "rounds_run": 1952,
+    "served_requests": 216,
+    "Attention_avg_cost": 153.52254098360655,
+    "Avg_Round_cost": 323.7418032786885,
+    "Tokens_generated": 122488
+  },
+  {
+    "batch_id": 245,
+    "served_type": -1,
+    "rounds_run": 1951,
+    "served_requests": 237,
+    "Attention_avg_cost": 169.32274590163934,
+    "Avg_Round_cost": 323.84315735520244,
+    "Tokens_generated": 121966
+  },
+  {
+    "batch_id": 246,
+    "served_type": -1,
+    "rounds_run": 2001,
+    "served_requests": 265,
+    "Attention_avg_cost": 138.62387612387613,
+    "Avg_Round_cost": 315.78110944527737,
+    "Tokens_generated": 125554
+  },
+  {
+    "batch_id": 247,
+    "served_type": -1,
+    "rounds_run": 2000,
+    "served_requests": 238,
+    "Attention_avg_cost": 174.35232383808096,
+    "Avg_Round_cost": 315.8605,
+    "Tokens_generated": 125133
+  },
+  {
+    "batch_id": 248,
+    "served_type": -1,
+    "rounds_run": 1849,
+    "served_requests": 198,
+    "Attention_avg_cost": 160.31783783783783,
+    "Avg_Round_cost": 341.76906435911303,
+    "Tokens_generated": 116314
+  },
+  {
+    "batch_id": 249,
+    "served_type": -1,
+    "rounds_run": 1848,
+    "served_requests": 232,
+    "Attention_avg_cost": 181.42617631151975,
+    "Avg_Round_cost": 341.8544372294372,
+    "Tokens_generated": 115953
+  },
+  {
+    "batch_id": 250,
+    "served_type": -1,
+    "rounds_run": 1981,
+    "served_requests": 209,
+    "Attention_avg_cost": 160.73158425832492,
+    "Avg_Round_cost": 318.84401817264006,
+    "Tokens_generated": 124358
+  },
+  {
+    "batch_id": 251,
+    "served_type": -1,
+    "rounds_run": 1981,
+    "served_requests": 256,
+    "Attention_avg_cost": 157.03279515640767,
+    "Avg_Round_cost": 318.93740535083293,
+    "Tokens_generated": 123673
+  },
+  {
+    "batch_id": 252,
+    "served_type": -1,
+    "rounds_run": 1879,
+    "served_requests": 307,
+    "Attention_avg_cost": 160.5627659574468,
+    "Avg_Round_cost": 336.2118147951038,
+    "Tokens_generated": 116807
+  },
+  {
+    "batch_id": 253,
+    "served_type": -1,
+    "rounds_run": 1878,
+    "served_requests": 226,
+    "Attention_avg_cost": 175.7344332091538,
+    "Avg_Round_cost": 336.26730564430244,
+    "Tokens_generated": 117493
+  },
+  {
+    "batch_id": 254,
+    "served_type": -1,
+    "rounds_run": 1764,
+    "served_requests": 204,
+    "Attention_avg_cost": 193.99886621315193,
+    "Avg_Round_cost": 358.2545351473923,
+    "Tokens_generated": 110333
+  },
+  {
+    "batch_id": 255,
+    "served_type": -1,
+    "rounds_run": 1763,
+    "served_requests": 233,
+    "Attention_avg_cost": 163.31972789115648,
+    "Avg_Round_cost": 358.3652864435621,
+    "Tokens_generated": 110864
+  },
+  {
+    "batch_id": 256,
+    "served_type": -1,
+    "rounds_run": 2125,
+    "served_requests": 220,
+    "Attention_avg_cost": 127.424,
+    "Avg_Round_cost": 297.38823529411764,
+    "Tokens_generated": 133922
+  },
+  {
+    "batch_id": 257,
+    "served_type": -1,
+    "rounds_run": 2124,
+    "served_requests": 253,
+    "Attention_avg_cost": 166.59058823529412,
+    "Avg_Round_cost": 297.4496233521657,
+    "Tokens_generated": 132378
+  },
+  {
+    "batch_id": 258,
+    "served_type": -1,
+    "rounds_run": 2077,
+    "served_requests": 237,
+    "Attention_avg_cost": 147.37921077959575,
+    "Avg_Round_cost": 304.1974000962927,
+    "Tokens_generated": 130017
+  },
+  {
+    "batch_id": 259,
+    "served_type": -1,
+    "rounds_run": 2076,
+    "served_requests": 255,
+    "Attention_avg_cost": 155.8613384689456,
+    "Avg_Round_cost": 304.2471098265896,
+    "Tokens_generated": 129734
+  },
+  {
+    "batch_id": 260,
+    "served_type": -1,
+    "rounds_run": 2256,
+    "served_requests": 254,
+    "Attention_avg_cost": 149.2038103677448,
+    "Avg_Round_cost": 280.04787234042556,
+    "Tokens_generated": 141232
+  },
+  {
+    "batch_id": 261,
+    "served_type": -1,
+    "rounds_run": 2256,
+    "served_requests": 262,
+    "Attention_avg_cost": 126.9720868409393,
+    "Avg_Round_cost": 280.1054964539007,
+    "Tokens_generated": 141916
+  },
+  {
+    "batch_id": 262,
+    "served_type": -1,
+    "rounds_run": 1817,
+    "served_requests": 192,
+    "Attention_avg_cost": 158.03575357535755,
+    "Avg_Round_cost": 347.7281232801321,
+    "Tokens_generated": 113963
+  },
+  {
+    "batch_id": 263,
+    "served_type": -1,
+    "rounds_run": 1816,
+    "served_requests": 217,
+    "Attention_avg_cost": 187.86846450192624,
+    "Avg_Round_cost": 347.82323788546256,
+    "Tokens_generated": 113706
+  },
+  {
+    "batch_id": 264,
+    "served_type": -1,
+    "rounds_run": 2057,
+    "served_requests": 245,
+    "Attention_avg_cost": 132.21914480077746,
+    "Avg_Round_cost": 307.0544482255712,
+    "Tokens_generated": 129264
+  },
+  {
+    "batch_id": 265,
+    "served_type": -1,
+    "rounds_run": 2057,
+    "served_requests": 239,
+    "Attention_avg_cost": 170.02186588921282,
+    "Avg_Round_cost": 307.1716091395236,
+    "Tokens_generated": 128616
+  },
+  {
+    "batch_id": 266,
+    "served_type": -1,
+    "rounds_run": 1974,
+    "served_requests": 245,
+    "Attention_avg_cost": 160.8693009118541,
+    "Avg_Round_cost": 320.1433637284701,
+    "Tokens_generated": 123592
+  },
+  {
+    "batch_id": 267,
+    "served_type": -1,
+    "rounds_run": 1973,
+    "served_requests": 245,
+    "Attention_avg_cost": 159.2061803444782,
+    "Avg_Round_cost": 320.1961479979726,
+    "Tokens_generated": 123410
+  },
+  {
+    "batch_id": 268,
+    "served_type": -1,
+    "rounds_run": 1813,
+    "served_requests": 269,
+    "Attention_avg_cost": 152.4614112458655,
+    "Avg_Round_cost": 348.4804191947049,
+    "Tokens_generated": 113784
+  },
+  {
+    "batch_id": 269,
+    "served_type": -1,
+    "rounds_run": 1813,
+    "served_requests": 212,
+    "Attention_avg_cost": 194.9933847850055,
+    "Avg_Round_cost": 348.561500275786,
+    "Tokens_generated": 113362
+  },
+  {
+    "batch_id": 270,
+    "served_type": -1,
+    "rounds_run": 1731,
+    "served_requests": 198,
+    "Attention_avg_cost": 181.92090069284063,
+    "Avg_Round_cost": 364.9820912767187,
+    "Tokens_generated": 108490
+  },
+  {
+    "batch_id": 271,
+    "served_type": -1,
+    "rounds_run": 1731,
+    "served_requests": 199,
+    "Attention_avg_cost": 183.03408434430966,
+    "Avg_Round_cost": 365.0675909878683,
+    "Tokens_generated": 108862
+  },
+  {
+    "batch_id": 272,
+    "served_type": -1,
+    "rounds_run": 1768,
+    "served_requests": 232,
+    "Attention_avg_cost": 175.1464104013567,
+    "Avg_Round_cost": 357.4027149321267,
+    "Tokens_generated": 110515
+  },
+  {
+    "batch_id": 273,
+    "served_type": -1,
+    "rounds_run": 1767,
+    "served_requests": 218,
+    "Attention_avg_cost": 182.2799773755656,
+    "Avg_Round_cost": 357.5104697226938,
+    "Tokens_generated": 110994
+  },
+  {
+    "batch_id": 274,
+    "served_type": -1,
+    "rounds_run": 1759,
+    "served_requests": 226,
+    "Attention_avg_cost": 186.125,
+    "Avg_Round_cost": 359.121091529278,
+    "Tokens_generated": 110035
+  },
+  {
+    "batch_id": 275,
+    "served_type": -1,
+    "rounds_run": 1759,
+    "served_requests": 203,
+    "Attention_avg_cost": 172.80568181818182,
+    "Avg_Round_cost": 359.2166003411029,
+    "Tokens_generated": 110525
+  },
+  {
+    "batch_id": 276,
+    "served_type": -1,
+    "rounds_run": 1687,
+    "served_requests": 206,
+    "Attention_avg_cost": 167.94668246445497,
+    "Avg_Round_cost": 374.5186721991701,
+    "Tokens_generated": 105937
+  },
+  {
+    "batch_id": 277,
+    "served_type": -1,
+    "rounds_run": 1686,
+    "served_requests": 212,
+    "Attention_avg_cost": 206.5951393005335,
+    "Avg_Round_cost": 374.6417556346382,
+    "Tokens_generated": 105897
+  },
+  {
+    "batch_id": 278,
+    "served_type": -1,
+    "rounds_run": 2235,
+    "served_requests": 269,
+    "Attention_avg_cost": 142.41994633273703,
+    "Avg_Round_cost": 282.6742729306488,
+    "Tokens_generated": 139878
+  },
+  {
+    "batch_id": 279,
+    "served_type": -1,
+    "rounds_run": 2235,
+    "served_requests": 290,
+    "Attention_avg_cost": 137.99552772808588,
+    "Avg_Round_cost": 282.73780760626397,
+    "Tokens_generated": 140149
+  },
+  {
+    "batch_id": 280,
+    "served_type": -1,
+    "rounds_run": 1947,
+    "served_requests": 250,
+    "Attention_avg_cost": 151.21611909650923,
+    "Avg_Round_cost": 324.54802259887003,
+    "Tokens_generated": 121866
+  },
+  {
+    "batch_id": 281,
+    "served_type": -1,
+    "rounds_run": 1946,
+    "served_requests": 257,
+    "Attention_avg_cost": 173.10220852593733,
+    "Avg_Round_cost": 324.62178828365876,
+    "Tokens_generated": 121612
+  },
+  {
+    "batch_id": 282,
+    "served_type": -1,
+    "rounds_run": 1770,
+    "served_requests": 229,
+    "Attention_avg_cost": 177.87966101694914,
+    "Avg_Round_cost": 357.02090395480224,
+    "Tokens_generated": 111209
+  },
+  {
+    "batch_id": 283,
+    "served_type": -1,
+    "rounds_run": 1769,
+    "served_requests": 230,
+    "Attention_avg_cost": 179.04689265536723,
+    "Avg_Round_cost": 357.1594120972301,
+    "Tokens_generated": 111247
+  },
+  {
+    "batch_id": 284,
+    "served_type": -1,
+    "rounds_run": 2116,
+    "served_requests": 220,
+    "Attention_avg_cost": 159.5170132325142,
+    "Avg_Round_cost": 298.63799621928166,
+    "Tokens_generated": 133048
+  },
+  {
+    "batch_id": 285,
+    "served_type": -1,
+    "rounds_run": 2115,
+    "served_requests": 258,
+    "Attention_avg_cost": 136.61909262759923,
+    "Avg_Round_cost": 298.6761229314421,
+    "Tokens_generated": 132049
+  },
+  {
+    "batch_id": 286,
+    "served_type": -1,
+    "rounds_run": 1906,
+    "served_requests": 211,
+    "Attention_avg_cost": 169.10330361824856,
+    "Avg_Round_cost": 331.4527806925498,
+    "Tokens_generated": 119301
+  },
+  {
+    "batch_id": 287,
+    "served_type": -1,
+    "rounds_run": 1906,
+    "served_requests": 246,
+    "Attention_avg_cost": 162.20881427072402,
+    "Avg_Round_cost": 331.5377754459601,
+    "Tokens_generated": 119063
+  },
+  {
+    "batch_id": 288,
+    "served_type": -1,
+    "rounds_run": 2188,
+    "served_requests": 191,
+    "Attention_avg_cost": 132.09547738693468,
+    "Avg_Round_cost": 288.7116087751371,
+    "Tokens_generated": 138052
+  },
+  {
+    "batch_id": 289,
+    "served_type": -1,
+    "rounds_run": 2188,
+    "served_requests": 304,
+    "Attention_avg_cost": 153.4846962083143,
+    "Avg_Round_cost": 288.77468007312615,
+    "Tokens_generated": 136581
+  },
+  {
+    "batch_id": 290,
+    "served_type": -1,
+    "rounds_run": 1830,
+    "served_requests": 195,
+    "Attention_avg_cost": 161.5592572364828,
+    "Avg_Round_cost": 345.2907103825137,
+    "Tokens_generated": 115223
+  },
+  {
+    "batch_id": 291,
+    "served_type": -1,
+    "rounds_run": 1829,
+    "served_requests": 257,
+    "Attention_avg_cost": 183.75956284153006,
+    "Avg_Round_cost": 345.3925642427556,
+    "Tokens_generated": 113785
+  },
+  {
+    "batch_id": 292,
+    "served_type": -1,
+    "rounds_run": 1940,
+    "served_requests": 254,
+    "Attention_avg_cost": 163.91293147861927,
+    "Avg_Round_cost": 325.62628865979383,
+    "Tokens_generated": 121788
+  },
+  {
+    "batch_id": 293,
+    "served_type": -1,
+    "rounds_run": 1940,
+    "served_requests": 250,
+    "Attention_avg_cost": 161.3930963420917,
+    "Avg_Round_cost": 325.7077319587629,
+    "Tokens_generated": 121563
+  },
+  {
+    "batch_id": 294,
+    "served_type": -1,
+    "rounds_run": 2053,
+    "served_requests": 290,
+    "Attention_avg_cost": 127.98052580331061,
+    "Avg_Round_cost": 307.7189478811495,
+    "Tokens_generated": 128257
+  },
+  {
+    "batch_id": 295,
+    "served_type": -1,
+    "rounds_run": 2053,
+    "served_requests": 224,
+    "Attention_avg_cost": 174.51071080817917,
+    "Avg_Round_cost": 307.80613735996104,
+    "Tokens_generated": 128694
+  },
+  {
+    "batch_id": 296,
+    "served_type": -1,
+    "rounds_run": 1913,
+    "served_requests": 237,
+    "Attention_avg_cost": 167.58180867746995,
+    "Avg_Round_cost": 330.35389440669104,
+    "Tokens_generated": 120068
+  },
+  {
+    "batch_id": 297,
+    "served_type": -1,
+    "rounds_run": 1912,
+    "served_requests": 212,
+    "Attention_avg_cost": 162.37689492943022,
+    "Avg_Round_cost": 330.4492677824268,
+    "Tokens_generated": 120399
+  },
+  {
+    "batch_id": 298,
+    "served_type": -1,
+    "rounds_run": 2143,
+    "served_requests": 234,
+    "Attention_avg_cost": 153.09048507462686,
+    "Avg_Round_cost": 294.8768082127858,
+    "Tokens_generated": 134591
+  },
+  {
+    "batch_id": 299,
+    "served_type": -1,
+    "rounds_run": 2142,
+    "served_requests": 303,
+    "Attention_avg_cost": 137.87540830611292,
+    "Avg_Round_cost": 294.9257703081233,
+    "Tokens_generated": 134146
+  },
+  {
+    "batch_id": 300,
+    "served_type": -1,
+    "rounds_run": 2054,
+    "served_requests": 219,
+    "Attention_avg_cost": 142.9566909975669,
+    "Avg_Round_cost": 307.6022395326193,
+    "Tokens_generated": 128867
+  },
+  {
+    "batch_id": 301,
+    "served_type": -1,
+    "rounds_run": 2054,
+    "served_requests": 264,
+    "Attention_avg_cost": 163.37293086660176,
+    "Avg_Round_cost": 307.65628042843235,
+    "Tokens_generated": 128295
+  },
+  {
+    "batch_id": 302,
+    "served_type": -1,
+    "rounds_run": 1685,
+    "served_requests": 195,
+    "Attention_avg_cost": 173.7141162514828,
+    "Avg_Round_cost": 374.8670623145401,
+    "Tokens_generated": 106342
+  },
+  {
+    "batch_id": 303,
+    "served_type": -1,
+    "rounds_run": 1685,
+    "served_requests": 188,
+    "Attention_avg_cost": 201.05990510083038,
+    "Avg_Round_cost": 374.9673590504451,
+    "Tokens_generated": 105414
+  },
+  {
+    "batch_id": 304,
+    "served_type": -1,
+    "rounds_run": 2059,
+    "served_requests": 230,
+    "Attention_avg_cost": 141.63252427184466,
+    "Avg_Round_cost": 306.8368139873725,
+    "Tokens_generated": 129408
+  },
+  {
+    "batch_id": 305,
+    "served_type": -1,
+    "rounds_run": 2059,
+    "served_requests": 278,
+    "Attention_avg_cost": 165.19669742593493,
+    "Avg_Round_cost": 306.93297717338515,
+    "Tokens_generated": 128499
+  },
+  {
+    "batch_id": 306,
+    "served_type": -1,
+    "rounds_run": 1915,
+    "served_requests": 268,
+    "Attention_avg_cost": 183.39665970772444,
+    "Avg_Round_cost": 329.94255874673627,
+    "Tokens_generated": 119787
+  },
+  {
+    "batch_id": 307,
+    "served_type": -1,
+    "rounds_run": 1915,
+    "served_requests": 265,
+    "Attention_avg_cost": 141.73107049608356,
+    "Avg_Round_cost": 330.0005221932115,
+    "Tokens_generated": 120343
+  },
+  {
+    "batch_id": 308,
+    "served_type": -1,
+    "rounds_run": 2230,
+    "served_requests": 269,
+    "Attention_avg_cost": 135.41999103541013,
+    "Avg_Round_cost": 283.3641255605381,
+    "Tokens_generated": 139236
+  },
+  {
+    "batch_id": 309,
+    "served_type": -1,
+    "rounds_run": 2229,
+    "served_requests": 232,
+    "Attention_avg_cost": 144.97085201793723,
+    "Avg_Round_cost": 283.42305966801257,
+    "Tokens_generated": 139865
+  },
+  {
+    "batch_id": 310,
+    "served_type": -1,
+    "rounds_run": 1645,
+    "served_requests": 256,
+    "Attention_avg_cost": 222.67436208991495,
+    "Avg_Round_cost": 384.02188449848023,
+    "Tokens_generated": 102548
+  },
+  {
+    "batch_id": 311,
+    "served_type": -1,
+    "rounds_run": 1645,
+    "served_requests": 228,
+    "Attention_avg_cost": 160.85775075987843,
+    "Avg_Round_cost": 384.1386018237082,
+    "Tokens_generated": 103024
+  },
+  {
+    "batch_id": 312,
+    "served_type": -1,
+    "rounds_run": 1835,
+    "served_requests": 202,
+    "Attention_avg_cost": 199.11928104575162,
+    "Avg_Round_cost": 344.2626702997275,
+    "Tokens_generated": 115346
+  },
+  {
+    "batch_id": 313,
+    "served_type": -1,
+    "rounds_run": 1835,
+    "served_requests": 243,
+    "Attention_avg_cost": 145.0261437908497,
+    "Avg_Round_cost": 344.33405994550407,
+    "Tokens_generated": 114894
+  },
+  {
+    "batch_id": 314,
+    "served_type": -1,
+    "rounds_run": 1970,
+    "served_requests": 249,
+    "Attention_avg_cost": 150.95484525621512,
+    "Avg_Round_cost": 320.6710659898477,
+    "Tokens_generated": 122643
+  },
+  {
+    "batch_id": 315,
+    "served_type": -1,
+    "rounds_run": 1970,
+    "served_requests": 264,
+    "Attention_avg_cost": 166.7767630644343,
+    "Avg_Round_cost": 320.75685279187815,
+    "Tokens_generated": 123266
+  },
+  {
+    "batch_id": 316,
+    "served_type": -1,
+    "rounds_run": 2173,
+    "served_requests": 264,
+    "Attention_avg_cost": 149.46228150873966,
+    "Avg_Round_cost": 290.80625862862405,
+    "Tokens_generated": 136282
+  },
+  {
+    "batch_id": 317,
+    "served_type": -1,
+    "rounds_run": 2172,
+    "served_requests": 259,
+    "Attention_avg_cost": 138.83294983893236,
+    "Avg_Round_cost": 290.878453038674,
+    "Tokens_generated": 135932
+  },
+  {
+    "batch_id": 318,
+    "served_type": -1,
+    "rounds_run": 1809,
+    "served_requests": 269,
+    "Attention_avg_cost": 187.03812154696132,
+    "Avg_Round_cost": 349.1802100608071,
+    "Tokens_generated": 112826
+  },
+  {
+    "batch_id": 319,
+    "served_type": -1,
+    "rounds_run": 1809,
+    "served_requests": 201,
+    "Attention_avg_cost": 161.30939226519337,
+    "Avg_Round_cost": 349.29574350469875,
+    "Tokens_generated": 113979
+  },
+  {
+    "batch_id": 320,
+    "served_type": -1,
+    "rounds_run": 1892,
+    "served_requests": 231,
+    "Attention_avg_cost": 149.14474379292128,
+    "Avg_Round_cost": 333.97463002114165,
+    "Tokens_generated": 118962
+  },
+  {
+    "batch_id": 321,
+    "served_type": -1,
+    "rounds_run": 1891,
+    "served_requests": 255,
+    "Attention_avg_cost": 182.72991543340382,
+    "Avg_Round_cost": 334.0824960338445,
+    "Tokens_generated": 117901
+  },
+  {
+    "batch_id": 322,
+    "served_type": -1,
+    "rounds_run": 1813,
+    "served_requests": 276,
+    "Attention_avg_cost": 191.35170893054024,
+    "Avg_Round_cost": 348.5289575289575,
+    "Tokens_generated": 113025
+  },
+  {
+    "batch_id": 323,
+    "served_type": -1,
+    "rounds_run": 1812,
+    "served_requests": 193,
+    "Attention_avg_cost": 156.7788196359625,
+    "Avg_Round_cost": 348.6451434878587,
+    "Tokens_generated": 114458
+  },
+  {
+    "batch_id": 324,
+    "served_type": -1,
+    "rounds_run": 1971,
+    "served_requests": 269,
+    "Attention_avg_cost": 141.06440162271807,
+    "Avg_Round_cost": 320.5043125317098,
+    "Tokens_generated": 123100
+  },
+  {
+    "batch_id": 325,
+    "served_type": -1,
+    "rounds_run": 1971,
+    "served_requests": 248,
+    "Attention_avg_cost": 177.91886409736307,
+    "Avg_Round_cost": 320.57787924911213,
+    "Tokens_generated": 123523
+  },
+  {
+    "batch_id": 326,
+    "served_type": -1,
+    "rounds_run": 1685,
+    "served_requests": 230,
+    "Attention_avg_cost": 164.52669039145908,
+    "Avg_Round_cost": 374.90623145400593,
+    "Tokens_generated": 105470
+  },
+  {
+    "batch_id": 327,
+    "served_type": -1,
+    "rounds_run": 1685,
+    "served_requests": 234,
+    "Attention_avg_cost": 209.59109792284866,
+    "Avg_Round_cost": 375.0593471810089,
+    "Tokens_generated": 105314
+  },
+  {
+    "batch_id": 328,
+    "served_type": -1,
+    "rounds_run": 2068,
+    "served_requests": 263,
+    "Attention_avg_cost": 146.81826969550508,
+    "Avg_Round_cost": 305.3878143133462,
+    "Tokens_generated": 129498
+  },
+  {
+    "batch_id": 329,
+    "served_type": -1,
+    "rounds_run": 2068,
+    "served_requests": 226,
+    "Attention_avg_cost": 154.23876268728856,
+    "Avg_Round_cost": 305.50531914893617,
+    "Tokens_generated": 130152
+  },
+  {
+    "batch_id": 330,
+    "served_type": -1,
+    "rounds_run": 2317,
+    "served_requests": 288,
+    "Attention_avg_cost": 137.26143226919757,
+    "Avg_Round_cost": 272.63141993957703,
+    "Tokens_generated": 144821
+  },
+  {
+    "batch_id": 331,
+    "served_type": -1,
+    "rounds_run": 2317,
+    "served_requests": 225,
+    "Attention_avg_cost": 128.4559965487489,
+    "Avg_Round_cost": 272.7026327147173,
+    "Tokens_generated": 146310
+  },
+  {
+    "batch_id": 332,
+    "served_type": -1,
+    "rounds_run": 2153,
+    "served_requests": 264,
+    "Attention_avg_cost": 152.94753946146704,
+    "Avg_Round_cost": 293.50812819321874,
+    "Tokens_generated": 134784
+  },
+  {
+    "batch_id": 333,
+    "served_type": -1,
+    "rounds_run": 2152,
+    "served_requests": 249,
+    "Attention_avg_cost": 137.49372967951695,
+    "Avg_Round_cost": 293.58736059479554,
+    "Tokens_generated": 135118
+  },
+  {
+    "batch_id": 334,
+    "served_type": -1,
+    "rounds_run": 1831,
+    "served_requests": 215,
+    "Attention_avg_cost": 196.07914847161572,
+    "Avg_Round_cost": 345.0600764609503,
+    "Tokens_generated": 114860
+  },
+  {
+    "batch_id": 335,
+    "served_type": -1,
+    "rounds_run": 1831,
+    "served_requests": 204,
+    "Attention_avg_cost": 146.97161572052403,
+    "Avg_Round_cost": 345.1239759694156,
+    "Tokens_generated": 114975
+  },
+  {
+    "batch_id": 336,
+    "served_type": -1,
+    "rounds_run": 1764,
+    "served_requests": 210,
+    "Attention_avg_cost": 168.047052154195,
+    "Avg_Round_cost": 358.21938775510205,
+    "Tokens_generated": 110423
+  },
+  {
+    "batch_id": 337,
+    "served_type": -1,
+    "rounds_run": 1763,
+    "served_requests": 210,
+    "Attention_avg_cost": 187.61337868480726,
+    "Avg_Round_cost": 358.334089619966,
+    "Tokens_generated": 110574
+  },
+  {
+    "batch_id": 338,
+    "served_type": -1,
+    "rounds_run": 1738,
+    "served_requests": 210,
+    "Attention_avg_cost": 169.41748131109833,
+    "Avg_Round_cost": 363.52416570771004,
+    "Tokens_generated": 109140
+  },
+  {
+    "batch_id": 339,
+    "served_type": -1,
+    "rounds_run": 1737,
+    "served_requests": 256,
+    "Attention_avg_cost": 193.9252013808976,
+    "Avg_Round_cost": 363.6447898675878,
+    "Tokens_generated": 108412
+  },
+  {
+    "batch_id": 340,
+    "served_type": -1,
+    "rounds_run": 2008,
+    "served_requests": 232,
+    "Attention_avg_cost": 153.35092085614733,
+    "Avg_Round_cost": 314.5612549800797,
+    "Tokens_generated": 125554
+  },
+  {
+    "batch_id": 341,
+    "served_type": -1,
+    "rounds_run": 2008,
+    "served_requests": 228,
+    "Attention_avg_cost": 159.97710303633647,
+    "Avg_Round_cost": 314.6598605577689,
+    "Tokens_generated": 125794
+  },
+  {
+    "batch_id": 342,
+    "served_type": -1,
+    "rounds_run": 2170,
+    "served_requests": 263,
+    "Attention_avg_cost": 135.99493321050207,
+    "Avg_Round_cost": 291.12857142857143,
+    "Tokens_generated": 136025
+  },
+  {
+    "batch_id": 343,
+    "served_type": -1,
+    "rounds_run": 2170,
+    "served_requests": 210,
+    "Attention_avg_cost": 153.19530170428374,
+    "Avg_Round_cost": 291.2069124423963,
+    "Tokens_generated": 136201
+  },
+  {
+    "batch_id": 344,
+    "served_type": -1,
+    "rounds_run": 2046,
+    "served_requests": 279,
+    "Attention_avg_cost": 154.32388861748902,
+    "Avg_Round_cost": 308.81329423264907,
+    "Tokens_generated": 127730
+  },
+  {
+    "batch_id": 345,
+    "served_type": -1,
+    "rounds_run": 2045,
+    "served_requests": 206,
+    "Attention_avg_cost": 150.95845552297166,
+    "Avg_Round_cost": 308.882151589242,
+    "Tokens_generated": 128678
+  },
+  {
+    "batch_id": 346,
+    "served_type": -1,
+    "rounds_run": 1605,
+    "served_requests": 188,
+    "Attention_avg_cost": 173.1183800623053,
+    "Avg_Round_cost": 393.7495327102804,
+    "Tokens_generated": 101132
+  },
+  {
+    "batch_id": 347,
+    "served_type": -1,
+    "rounds_run": 1604,
+    "served_requests": 237,
+    "Attention_avg_cost": 220.6772585669782,
+    "Avg_Round_cost": 393.8996259351621,
+    "Tokens_generated": 99794
+  },
+  {
+    "batch_id": 348,
+    "served_type": -1,
+    "rounds_run": 2088,
+    "served_requests": 276,
+    "Attention_avg_cost": 170.1177596936333,
+    "Avg_Round_cost": 302.6202107279693,
+    "Tokens_generated": 130351
+  },
+  {
+    "batch_id": 349,
+    "served_type": -1,
+    "rounds_run": 2087,
+    "served_requests": 263,
+    "Attention_avg_cost": 130.41331417624522,
+    "Avg_Round_cost": 302.680881648299,
+    "Tokens_generated": 130498
+  },
+  {
+    "batch_id": 350,
+    "served_type": -1,
+    "rounds_run": 1997,
+    "served_requests": 246,
+    "Attention_avg_cost": 142.4164164164164,
+    "Avg_Round_cost": 316.39058587881823,
+    "Tokens_generated": 125131
+  },
+  {
+    "batch_id": 351,
+    "served_type": -1,
+    "rounds_run": 1997,
+    "served_requests": 251,
+    "Attention_avg_cost": 172.47521281922883,
+    "Avg_Round_cost": 316.4626940410616,
+    "Tokens_generated": 124387
+  },
+  {
+    "batch_id": 352,
+    "served_type": -1,
+    "rounds_run": 2109,
+    "served_requests": 303,
+    "Attention_avg_cost": 145.74976303317536,
+    "Avg_Round_cost": 299.61830251303934,
+    "Tokens_generated": 131871
+  },
+  {
+    "batch_id": 353,
+    "served_type": -1,
+    "rounds_run": 2108,
+    "served_requests": 256,
+    "Attention_avg_cost": 152.55239449976293,
+    "Avg_Round_cost": 299.6973434535104,
+    "Tokens_generated": 132182
+  },
+  {
+    "batch_id": 354,
+    "served_type": -1,
+    "rounds_run": 2200,
+    "served_requests": 228,
+    "Attention_avg_cost": 156.94366197183098,
+    "Avg_Round_cost": 287.19954545454544,
+    "Tokens_generated": 137150
+  },
+  {
+    "batch_id": 355,
+    "served_type": -1,
+    "rounds_run": 2199,
+    "served_requests": 222,
+    "Attention_avg_cost": 126.87227272727273,
+    "Avg_Round_cost": 287.23647112323783,
+    "Tokens_generated": 137869
+  },
+  {
+    "batch_id": 356,
+    "served_type": -1,
+    "rounds_run": 2144,
+    "served_requests": 213,
+    "Attention_avg_cost": 136.1011655011655,
+    "Avg_Round_cost": 294.70522388059703,
+    "Tokens_generated": 134380
+  },
+  {
+    "batch_id": 357,
+    "served_type": -1,
+    "rounds_run": 2144,
+    "served_requests": 218,
+    "Attention_avg_cost": 158.31483208955223,
+    "Avg_Round_cost": 294.7616604477612,
+    "Tokens_generated": 134521
+  },
+  {
+    "batch_id": 358,
+    "served_type": -1,
+    "rounds_run": 1729,
+    "served_requests": 230,
+    "Attention_avg_cost": 197.0491329479769,
+    "Avg_Round_cost": 365.46096009253904,
+    "Tokens_generated": 108180
+  },
+  {
+    "batch_id": 359,
+    "served_type": -1,
+    "rounds_run": 1728,
+    "served_requests": 201,
+    "Attention_avg_cost": 167.90977443609023,
+    "Avg_Round_cost": 365.58101851851853,
+    "Tokens_generated": 108407
+  },
+  {
+    "batch_id": 360,
+    "served_type": -1,
+    "rounds_run": 1753,
+    "served_requests": 254,
+    "Attention_avg_cost": 195.91790193842647,
+    "Avg_Round_cost": 360.48773531089563,
+    "Tokens_generated": 109021
+  },
+  {
+    "batch_id": 361,
+    "served_type": -1,
+    "rounds_run": 1752,
+    "served_requests": 256,
+    "Attention_avg_cost": 164.21677124928695,
+    "Avg_Round_cost": 360.6084474885845,
+    "Tokens_generated": 109654
+  },
+  {
+    "batch_id": 362,
+    "served_type": -1,
+    "rounds_run": 1722,
+    "served_requests": 228,
+    "Attention_avg_cost": 204.0742890307603,
+    "Avg_Round_cost": 366.93379790940764,
+    "Tokens_generated": 107583
+  },
+  {
+    "batch_id": 363,
+    "served_type": -1,
+    "rounds_run": 1721,
+    "served_requests": 198,
+    "Attention_avg_cost": 162.46631823461092,
+    "Avg_Round_cost": 367.0482277745497,
+    "Tokens_generated": 108210
+  },
+  {
+    "batch_id": 364,
+    "served_type": -1,
+    "rounds_run": 2043,
+    "served_requests": 220,
+    "Attention_avg_cost": 159.21428571428572,
+    "Avg_Round_cost": 309.26333822809596,
+    "Tokens_generated": 128351
+  },
+  {
+    "batch_id": 365,
+    "served_type": -1,
+    "rounds_run": 2043,
+    "served_requests": 229,
+    "Attention_avg_cost": 148.33284385707293,
+    "Avg_Round_cost": 309.3318649045521,
+    "Tokens_generated": 128370
+  },
+  {
+    "batch_id": 366,
+    "served_type": -1,
+    "rounds_run": 1778,
+    "served_requests": 233,
+    "Attention_avg_cost": 163.82967959527824,
+    "Avg_Round_cost": 355.35601799775026,
+    "Tokens_generated": 111249
+  },
+  {
+    "batch_id": 367,
+    "served_type": -1,
+    "rounds_run": 1778,
+    "served_requests": 240,
+    "Attention_avg_cost": 191.41844769403824,
+    "Avg_Round_cost": 355.44206974128235,
+    "Tokens_generated": 111191
+  },
+  {
+    "batch_id": 368,
+    "served_type": -1,
+    "rounds_run": 2016,
+    "served_requests": 302,
+    "Attention_avg_cost": 155.07635101636095,
+    "Avg_Round_cost": 313.42261904761904,
+    "Tokens_generated": 125595
+  },
+  {
+    "batch_id": 369,
+    "served_type": -1,
+    "rounds_run": 2015,
+    "served_requests": 273,
+    "Attention_avg_cost": 158.0327380952381,
+    "Avg_Round_cost": 313.51414392059553,
+    "Tokens_generated": 125835
+  },
+  {
+    "batch_id": 370,
+    "served_type": -1,
+    "rounds_run": 1844,
+    "served_requests": 248,
+    "Attention_avg_cost": 178.00379403794037,
+    "Avg_Round_cost": 342.5802603036876,
+    "Tokens_generated": 115157
+  },
+  {
+    "batch_id": 371,
+    "served_type": -1,
+    "rounds_run": 1844,
+    "served_requests": 262,
+    "Attention_avg_cost": 164.40975609756097,
+    "Avg_Round_cost": 342.6637744034707,
+    "Tokens_generated": 115404
+  },
+  {
+    "batch_id": 372,
+    "served_type": -1,
+    "rounds_run": 2132,
+    "served_requests": 251,
+    "Attention_avg_cost": 136.27004219409284,
+    "Avg_Round_cost": 296.38367729831145,
+    "Tokens_generated": 133610
+  },
+  {
+    "batch_id": 373,
+    "served_type": -1,
+    "rounds_run": 2131,
+    "served_requests": 275,
+    "Attention_avg_cost": 157.26782363977486,
+    "Avg_Round_cost": 296.4509619896762,
+    "Tokens_generated": 132989
+  },
+  {
+    "batch_id": 374,
+    "served_type": -1,
+    "rounds_run": 2153,
+    "served_requests": 255,
+    "Attention_avg_cost": 148.59656453110492,
+    "Avg_Round_cost": 293.44867626567583,
+    "Tokens_generated": 134662
+  },
+  {
+    "batch_id": 375,
+    "served_type": -1,
+    "rounds_run": 2152,
+    "served_requests": 231,
+    "Attention_avg_cost": 142.22619600557363,
+    "Avg_Round_cost": 293.48698884758363,
+    "Tokens_generated": 134893
+  },
+  {
+    "batch_id": 376,
+    "served_type": -1,
+    "rounds_run": 1680,
+    "served_requests": 217,
+    "Attention_avg_cost": 172.76383105294468,
+    "Avg_Round_cost": 376.07142857142856,
+    "Tokens_generated": 105436
+  },
+  {
+    "batch_id": 377,
+    "served_type": -1,
+    "rounds_run": 1679,
+    "served_requests": 242,
+    "Attention_avg_cost": 203.26785714285714,
+    "Avg_Round_cost": 376.2090530077427,
+    "Tokens_generated": 104338
+  },
+  {
+    "batch_id": 378,
+    "served_type": -1,
+    "rounds_run": 1961,
+    "served_requests": 251,
+    "Attention_avg_cost": 157.81039755351682,
+    "Avg_Round_cost": 322.1687914329424,
+    "Tokens_generated": 123235
+  },
+  {
+    "batch_id": 379,
+    "served_type": -1,
+    "rounds_run": 1961,
+    "served_requests": 236,
+    "Attention_avg_cost": 163.92201834862385,
+    "Avg_Round_cost": 322.24426313105556,
+    "Tokens_generated": 123336
+  },
+  {
+    "batch_id": 380,
+    "served_type": -1,
+    "rounds_run": 1773,
+    "served_requests": 226,
+    "Attention_avg_cost": 182.68771138669672,
+    "Avg_Round_cost": 356.331641285956,
+    "Tokens_generated": 110923
+  },
+  {
+    "batch_id": 381,
+    "served_type": -1,
+    "rounds_run": 1773,
+    "served_requests": 210,
+    "Attention_avg_cost": 173.4478285391991,
+    "Avg_Round_cost": 356.4410603496898,
+    "Tokens_generated": 111133
+  },
+  {
+    "batch_id": 382,
+    "served_type": -1,
+    "rounds_run": 1919,
+    "served_requests": 257,
+    "Attention_avg_cost": 166.4421875,
+    "Avg_Round_cost": 329.2120896300156,
+    "Tokens_generated": 119580
+  },
+  {
+    "batch_id": 383,
+    "served_type": -1,
+    "rounds_run": 1919,
+    "served_requests": 188,
+    "Attention_avg_cost": 162.66666666666666,
+    "Avg_Round_cost": 329.2881709223554,
+    "Tokens_generated": 120832
+  },
+  {
+    "batch_id": 384,
+    "served_type": -1,
+    "rounds_run": 2010,
+    "served_requests": 219,
+    "Attention_avg_cost": 154.44654400795625,
+    "Avg_Round_cost": 314.3179104477612,
+    "Tokens_generated": 125887
+  },
+  {
+    "batch_id": 385,
+    "served_type": -1,
+    "rounds_run": 2010,
+    "served_requests": 252,
+    "Attention_avg_cost": 158.84427860696516,
+    "Avg_Round_cost": 314.3905472636816,
+    "Tokens_generated": 125427
+  },
+  {
+    "batch_id": 386,
+    "served_type": -1,
+    "rounds_run": 1781,
+    "served_requests": 244,
+    "Attention_avg_cost": 173.22109988776654,
+    "Avg_Round_cost": 354.79618192026953,
+    "Tokens_generated": 111190
+  },
+  {
+    "batch_id": 387,
+    "served_type": -1,
+    "rounds_run": 1780,
+    "served_requests": 234,
+    "Attention_avg_cost": 180.6137001684447,
+    "Avg_Round_cost": 354.87134831460673,
+    "Tokens_generated": 111653
+  },
+  {
+    "batch_id": 388,
+    "served_type": -1,
+    "rounds_run": 2033,
+    "served_requests": 278,
+    "Attention_avg_cost": 171.73058013765979,
+    "Avg_Round_cost": 310.8032464338416,
+    "Tokens_generated": 126474
+  },
+  {
+    "batch_id": 389,
+    "served_type": -1,
+    "rounds_run": 2032,
+    "served_requests": 216,
+    "Attention_avg_cost": 138.3433349729464,
+    "Avg_Round_cost": 310.8528543307087,
+    "Tokens_generated": 128082
+  },
+  {
+    "batch_id": 390,
+    "served_type": -1,
+    "rounds_run": 1875,
+    "served_requests": 215,
+    "Attention_avg_cost": 157.15191897654583,
+    "Avg_Round_cost": 336.936,
+    "Tokens_generated": 117683
+  },
+  {
+    "batch_id": 391,
+    "served_type": -1,
+    "rounds_run": 1875,
+    "served_requests": 169,
+    "Attention_avg_cost": 178.64605543710022,
+    "Avg_Round_cost": 337.00373333333334,
+    "Tokens_generated": 118022
+  },
+  {
+    "batch_id": 392,
+    "served_type": -1,
+    "rounds_run": 1798,
+    "served_requests": 272,
+    "Attention_avg_cost": 157.650917176209,
+    "Avg_Round_cost": 351.37764182424917,
+    "Tokens_generated": 112781
+  },
+  {
+    "batch_id": 393,
+    "served_type": -1,
+    "rounds_run": 1797,
+    "served_requests": 200,
+    "Attention_avg_cost": 193.14849833147943,
+    "Avg_Round_cost": 351.51363383416805,
+    "Tokens_generated": 112584
+  },
+  {
+    "batch_id": 394,
+    "served_type": -1,
+    "rounds_run": 2035,
+    "served_requests": 226,
+    "Attention_avg_cost": 150.7819253438114,
+    "Avg_Round_cost": 310.5051597051597,
+    "Tokens_generated": 127790
+  },
+  {
+    "batch_id": 395,
+    "served_type": -1,
+    "rounds_run": 2034,
+    "served_requests": 239,
+    "Attention_avg_cost": 157.9921375921376,
+    "Avg_Round_cost": 310.5835791543756,
+    "Tokens_generated": 127719
+  },
+  {
+    "batch_id": 396,
+    "served_type": -1,
+    "rounds_run": 1902,
+    "served_requests": 240,
+    "Attention_avg_cost": 199.59485023646874,
+    "Avg_Round_cost": 332.20452155625657,
+    "Tokens_generated": 119077
+  },
+  {
+    "batch_id": 397,
+    "served_type": -1,
+    "rounds_run": 1902,
+    "served_requests": 273,
+    "Attention_avg_cost": 127.41062039957939,
+    "Avg_Round_cost": 332.2676130389064,
+    "Tokens_generated": 119369
+  },
+  {
+    "batch_id": 398,
+    "served_type": -1,
+    "rounds_run": 1942,
+    "served_requests": 259,
+    "Attention_avg_cost": 158.37416366443645,
+    "Avg_Round_cost": 325.33522142121524,
+    "Tokens_generated": 121361
+  },
+  {
+    "batch_id": 399,
+    "served_type": -1,
+    "rounds_run": 1942,
+    "served_requests": 278,
+    "Attention_avg_cost": 165.5923829130211,
+    "Avg_Round_cost": 325.4073120494336,
+    "Tokens_generated": 120971
+  }
+]

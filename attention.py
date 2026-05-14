@@ -103,6 +103,18 @@ class Server:
                     self.last_finished_batch_id = batch_id
     def attention_work(self, current_time, alpha_A, beta_A):
         for batch_id, batch in self.batches.items():
+            # 新增: status==0 但 waiting_buffer 有 ready 的 request, 复活 batch
+            if batch.status == 0 and batch.num_buffered_req > 0:
+                for request in batch.waiting_buffer:
+                    if request.status == 5:
+                        if current_time + 1 > request.loading_finished_time:
+                            request.status = 1
+                batch.append_requests_from_waiting_buffer(current_time)
+                if batch.num_req > 0:
+                    # 把 waiting_buffer 里 status==1 的搬进来后, batch 现在有 request 了
+                    batch.status = 1
+                    batch.attention_now = True
+                    # 让本轮的 status==1 分支接着处理 (落到下面 elif batch.status == 1)
             if batch.status == 5: # Waiting for allocation in attention
                 if self.current_busy == False:
                     batch.Attention_processing(current_time, alpha_A, beta_A)

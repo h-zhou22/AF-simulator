@@ -64,6 +64,7 @@ class Batch:
         self.dynamic_matching = dynamic_matching
 
         self.waiting_buffer = [] # 等待本轮完成后进行load的request
+        self.total_tokens_generated = 0
 
     def is_due(self, current_time) -> bool:
         """current_ending 落在 [current_time, current_time+1) 内视为本 cycle 到期."""
@@ -202,6 +203,7 @@ class Batch:
     def do_new_round(self, current_time, stats):
         self.collect_makespan(current_time)
         self.append_requests_from_waiting_buffer(current_time)
+        self.total_tokens_generated += len(self.requests)
         for request in list(self.requests):
             flag = request.do_new_round(current_time, stats)
             if flag:
@@ -269,7 +271,7 @@ class Batch:
         self.waiting_tot_length += request.length
         self.num_buffered_req += 1
         request.loading_to_Batch_buffer(current_time)
-        test_print = True
+        test_print = False
         if test_print:
             print("Batch {} append request to waiting buffer, time: {}".format(self.batch_id, current_time))
             #self.print_debug_information()

@@ -133,6 +133,9 @@ class GlobalArranger:
         """非 multitype arranger 不维护 score_table, 此处空实现保持接口一致."""
         pass
 
+    def print_multitype_queue_info(self):
+        pass
+
 class GreedyArranger:
     def __init__(self, servers, costly_loading: bool = False):
         self.servers = servers
@@ -229,6 +232,9 @@ class GreedyArranger:
                 break
     def update_score(self, request: Request):
         """非 multitype arranger 不维护 score_table, 此处空实现保持接口一致."""
+        pass
+
+    def print_multitype_queue_info(self):
         pass
 
 class MultitypeArranger:

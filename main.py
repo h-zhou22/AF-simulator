@@ -6,9 +6,9 @@ from attention import Server
 from typing import Dict, List, Tuple
 from stats import StatsCollector
 from request import Request
-from FFN import FFN, dynamic_FFN
+from FFN import FFN, dynamic_FFN, MoEFFN
 from batch import Batch
-from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler
+from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler, MoEScheduler
 from collections import deque
 from arranger import GlobalArranger, GreedyArranger, MultitypeArranger
 
@@ -84,10 +84,13 @@ def parse_args():
     parser.add_argument("--allow_exchange", action="store_true",
                         help="Allow batches inside pipeline FFN to exchange when former ones are ready")
     
-    parser.add_argument("--server_capacity", type=int, default=960000,
+    parser.add_argument("--server_capacity", type=int, default=655360,
         help="Maximal memory capacity of Attention server")
     parser.add_argument("--prediction_agent", action="store_true",
                         help="Use different agents with ability to predict the generation length.")
+
+    parser.add_argument("--is_MoE", action="store_true",
+                        help="Use MoE.")
 
     return parser.parse_args()
 
@@ -134,11 +137,11 @@ def main():
     else:
         """配置multi-type server和batch的长度分布情况"""
         if generator_type >= 2:
-            short_round_server_cnt = num_servers//8
+            short_round_server_cnt = math.ceil(num_servers/64)
             short_server_cnt = num_servers//8
             middle_server_cnt = num_servers//4
-            long_server_cnt = num_servers//8
-            long_mix_server_cnt = num_servers//8
+            long_server_cnt = num_servers//4
+            long_mix_server_cnt = num_servers//32
             longest_server_cnt = num_servers//4
             normal_server_cnt = num_servers - short_round_server_cnt - middle_server_cnt - short_server_cnt - long_server_cnt - longest_server_cnt - long_mix_server_cnt
             assert normal_server_cnt >= 0
@@ -296,11 +299,11 @@ def main():
                 server_id += 1
                 server.typed_server = True
         else:
-            short_round_server_cnt = num_servers//8
+            short_round_server_cnt = math.ceil(num_servers/64)
             short_server_cnt = num_servers//8
             middle_server_cnt = num_servers//4
             long_server_cnt = num_servers//4
-            long_mix_server_cnt = num_servers//4
+            long_mix_server_cnt = num_servers//32
             normal_server_cnt = num_servers - short_round_server_cnt - middle_server_cnt - short_server_cnt - long_server_cnt - long_mix_server_cnt
             assert normal_server_cnt >= 0
             server_id = 0
@@ -486,7 +489,8 @@ def main():
             maximal_generation = args.maximal_generation,
             basic_length=args.basic_num,
             alpha_L= args.alpha_L,
-            beta_L= args.beta_L
+            beta_L= args.beta_L,
+            is_MoE= args.is_MoE
         ) 
     else:
         raise NotImplementedError("Not Implemented Yet in generator.py")
@@ -589,6 +593,34 @@ def main():
                     print("Batch status: ",stored_batches[j].status)
                     print("Batch current ending: ", stored_batches[j].current_ending)
     # Loop End For Single FFN cases
+    elif args.FFN_type == 5:
+        # MoE
+        if args.num_FFN < args.num_experts:
+            raise ValueError(
+                f"num_FFN ({args.num_FFN}) must >= num_experts ({args.num_experts}) for MoE")
+        if not args.is_MoE:
+            raise ValueError("FFN_type=5 (MoE) requires --is_MoE")
+        from FFN import MoEFFN
+        FFN_workers = []
+        for wid in range(args.num_FFN):
+            eid = wid % args.num_experts
+            FFN_workers.append(MoEFFN(wid, eid, args.alpha_F_moe, args.beta_F_moe))
+
+        scheduler = MoEScheduler(
+            arranger, servers, FFN_workers, stats, buffer, stored_batches,
+            alpha_A, beta_A, alpha_T, beta_T,
+            args.alpha_F_moe, args.beta_F_moe,
+            num_experts=args.num_experts,
+            initially_full=True,
+        )
+
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                arranger.inqueue_request(req)
+            scheduler.do_cycle_work(global_time)
+            finished_requests = stats.finished_request
+            global_time += 1
     elif args.FFN_type == 1:  
         cyc_t0 = time.perf_counter()
         least_num_to_fill = args.num_batch * args.batch_size 
@@ -639,6 +671,12 @@ def main():
             finished_requests = stats.finished_request
             global_time += 1
 
+            if global_time % 10000 == 0:
+                print("Global Time: ", global_time)
+                print("Finished requests: ", finished_requests)
+                for batch in stored_batches.values():
+                    batch.print_debug_information()
+
     elif args.FFN_type == 4:
         cyc_t0 = time.perf_counter()
         least_num_to_fill = args.num_batch * args.batch_size * args.num_server
@@ -660,6 +698,13 @@ def main():
             finished_requests = stats.finished_request
             global_time += 1 
 
+            if global_time % 10000 == 0:
+                print("Global Time: ", global_time)
+                print("Generated requests: ", generator.gen_tot)
+                print("Finished requests: ", finished_requests)
+                for batch in stored_batches.values():
+                    batch.print_debug_information()
+
     if cycle_times:
         total_wall = time.perf_counter() - total_wall_start
         n = len(cycle_times)
@@ -676,10 +721,10 @@ def main():
         print(f"Max:              {1000*max(cycle_times):.3f}ms")
 
         # 按 1000 cycle 一段平均, 看是否随实验进行变慢
-        print(f"\n=== Per-1000-cycle averages (look for trends) ===")
-        for i in range(0, n, 1000):
-            chunk = cycle_times[i:i + 1000]
-            print(f"  cycles {i}-{i+len(chunk)-1}: avg={1000*sum(chunk)/len(chunk):.3f}ms")
+        print(f"\n=== Per-10000-cycle averages (look for trends) ===")
+        for i in range(0, n, 10000):
+            chunk = cycle_times[i:i + 10000]
+            print(f"  cycles {i}-{i+len(chunk)-1}: avg={10000*sum(chunk)/len(chunk):.3f}ms")
     main_print = False
     for batch_id in range(len(stored_batches)):
         if main_print:
@@ -693,6 +738,7 @@ def main():
     print(f"Total cycles: {global_time}")
     print(f"Total finished: {finished_requests}")
     print("\n=== STATISTICS SUMMARY ===")
+    stats.record_finish_cycle(global_time)
     stats.dump_records_to_json()
     stats.dump_summary_to_json()
     stats.dump_batch_info_to_json()

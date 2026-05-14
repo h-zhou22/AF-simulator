@@ -36,9 +36,11 @@ class StatsCollector:
         self.prefix = prefix
         self.output_dir = "result"
         self.length_distribution = {b: 0 for b in LENGTH_BUCKETS}
+        self.final_length_distribution = {b: 0 for b in LENGTH_BUCKETS}
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.batch_avg_attention = []
+        self.tot_batch_rounds = 0
 
         # ---- per-actual_type / per-agent / per-agent_type ----
         # actual_type ∈ {0,1,2,3,4}, 用 -2 兜底未知 (一般不会发生)
@@ -58,10 +60,15 @@ class StatsCollector:
         # ---- evict 计数 ----
         self.total_evict_count = 0     # request-level: 每被 evict 一次 +1
         # 同一 request 多次被 evict 都各自计入
+        self.tokens_cnt = 0
+        self.finished_cycle = -1
 
     # ---- 由 scheduler 在 evict 后调用 ----
     def record_eviction(self, n: int = 1):
         self.total_evict_count += n
+
+    def record_finish_cycle(self, finished_time):
+        self.finished_cycle = finished_time
 
     def record(self, req: Request):
         record_print = True
@@ -72,6 +79,8 @@ class StatsCollector:
         self.finished_request += 1
         bucket = _length_bucket(req.original_len)
         self.length_distribution[bucket] += 1
+        final_bucket = _length_bucket(req.length)
+        self.final_length_distribution[final_bucket] += 1
 
         increase_length = req.length - req.original_len
         self.tot_increase_length += increase_length
@@ -148,10 +157,13 @@ class StatsCollector:
 
     def record_batch(self, batch: Batch):
         rounds = len(batch.round_cost)
+        tokens_cnt = batch.total_tokens_generated
+        self.tot_batch_rounds += rounds
+        self.tokens_cnt += tokens_cnt
         if rounds == 0:
             batch.print_info()
             return
-
+        
         tot_cost = sum(batch.round_cost)
         avg_cost = tot_cost / rounds
         attention_avg_cost = sum(batch.Acost) / len(batch.Acost) if batch.Acost else 0
@@ -164,6 +176,7 @@ class StatsCollector:
             "served_requests": batch.ever_served_request,
             "Attention_avg_cost": attention_avg_cost,
             "Avg_Round_cost": avg_cost,
+            "Tokens_generated": tokens_cnt
         })
 
     # ---- summary helpers ----
@@ -250,12 +263,15 @@ class StatsCollector:
 
         return {
             "finished_requests": self.finished_request,
+            "global_time": self.finished_cycle,
+            "generated_tokens": self.tokens_cnt,
             "avg_processing_time": avg_proc,                  # 不含排队
             "avg_total_time_with_queue": avg_total_q,         # 含排队+evict
             "avg_time_per_cycle_per_request": avg_per_round,
             "avg_processing_time_by_initial_length": bucket_avg_proc,
             "avg_total_time_with_queue_by_initial_length": bucket_avg_total_q,
             "finished count": self.length_distribution,
+            "requests of final length distribution": self.final_length_distribution,
             "batch_attention_avg": batch_attention_cost,
             "num_batches": total_batch,
             "avg_batch_cost": batch_round_cost,
