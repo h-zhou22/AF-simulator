@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument("--num_server", type=int, default=1,
                         help="number of servers to create")
     parser.add_argument("--FFN_type", type = int, default=0,
-                        help="0: single FFN worker, 1: FFN server maintaining a given order, 2: MoE, 3: Baseline, 4: FFN with dynamic batching between Batches and FFN")
+                        help="0: single FFN worker, 1: FFN server maintaining a given order, 2: MoE, 3: Baseline, 4: FFN with dynamic batching between Batches and FFN, 5 MoE FFN with queuing optimization")
     
     parser.add_argument("--num_batch", type=int, default=2,
                         help="number of batches inside each server")
@@ -593,7 +593,7 @@ def main():
                     print("Batch status: ",stored_batches[j].status)
                     print("Batch current ending: ", stored_batches[j].current_ending)
     # Loop End For Single FFN cases
-    elif args.FFN_type == 5:
+    elif args.FFN_type == 2:
         # MoE
         if args.num_FFN < args.num_experts:
             raise ValueError(

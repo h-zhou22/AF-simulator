@@ -1075,4 +1075,9 @@ class MoEScheduler:
 
         # Stage 7: attention
         for server in self.servers:
-            server.attention_work(current_time, self.alpha_A, self.beta_A)  
+            server.attention_work(current_time, self.alpha_A, self.beta_A)
+
+        # 每 N cycle 打一次
+        if current_time % 5000 == 0:
+            qlens = [len(self.expert_queues[i]) for i in range(self.num_experts)]
+            print(f"[cycle {current_time}] expert queue lens: {qlens}")  
