@@ -41,6 +41,7 @@ class Server:
         self.dynamic_space = 4096
 
         self.requests_to_be_evicted = []
+        self.is_MoE_mode = False
 
     # 只判断是否能够装得下
     def judge_capable(self, request: Request)-> bool:
@@ -87,7 +88,8 @@ class Server:
                     continue
                 if batch.is_due(current_time):
                     batch.A2F_transmission_end(current_time)
-                    FFN_worker.load_batch(current_time, batch)
+                    if not self.is_MoE_mode:
+                        FFN_worker.load_batch(current_time, batch)
                     #batch.FFN_processing(current_time, alpha_F, beta_F)
             elif batch.status == 1:
                 if batch.attention_now:
@@ -97,10 +99,17 @@ class Server:
                     batch.A2F_transmission(current_time, alpha_T, beta_T)
                     self.current_busy = False
             elif batch.status == 2:
-                if batch.is_due(current_time):
-                    batch.F2A_transmission(current_time, alpha_T, beta_T)
-                    self.first_finished_batch_id = self.last_finished_batch_id
-                    self.last_finished_batch_id = batch_id
+                if not self.is_MoE_mode:
+                    if batch.is_due(current_time):
+                        batch.F2A_transmission(current_time, alpha_T, beta_T)
+                        self.first_finished_batch_id = self.last_finished_batch_id
+                        self.last_finished_batch_id = batch_id
+                else:
+                    if batch.moe_completed:
+                        batch.moe_completed = False
+                        batch.F2A_transmission(current_time, alpha_T, beta_T)
+                        self.first_finished_batch_id = self.last_finished_batch_id
+                        self.last_finished_batch_id = batch_id
     def attention_work(self, current_time, alpha_A, beta_A):
         for batch_id, batch in self.batches.items():
             # 新增: status==0 但 waiting_buffer 有 ready 的 request, 复活 batch

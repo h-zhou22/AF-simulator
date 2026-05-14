@@ -412,7 +412,7 @@ class PipelineScheduler:
                     break
         
         # 根据最终的 AF_match 把所有 batch 接到对应 FFN 的流水线上
-# 此时 batch.matched_FFN_id 仍为 -1, construct_pipeline 会设它
+# 此时 batch.mapped_FFN_id 仍为 -1, construct_pipeline 会设它
         for server in self.servers:
             ffn_id = self.AF_match[server.server_id]
             ffn_worker = self.FFN_workers[ffn_id]
@@ -526,6 +526,24 @@ class PipelineScheduler:
         ffn_a = self.FFN_workers[ffn_id_a]
         ffn_b = self.FFN_workers[ffn_id_b]
 
+        print(f"[swap@{current_time}] s{server_id_a}↔s{server_id_b}, "
+          f"ffn_a={ffn_id_a}, ffn_b={ffn_id_b}")
+        server_a = self.servers[server_id_a]
+        server_b = self.servers[server_id_b]
+        print(f"  s{server_id_a}: last={server_a.last_finished_batch_id}, "
+            f"first={server_a.first_finished_batch_id}, "
+            f"batches={list(server_a.batches.keys())}")
+        print(f"  s{server_id_b}: last={server_b.last_finished_batch_id}, "
+            f"first={server_b.first_finished_batch_id}, "
+            f"batches={list(server_b.batches.keys())}")
+        # 检查 server 拥有的 batch 当前 mapped_FFN_id 是否和 AF_match 一致
+        for sid, server in [(server_id_a, server_a), (server_id_b, server_b)]:
+            expected = self.AF_match[sid]
+            for batch in server.batches.values():
+                if batch.mapped_FFN_id != expected:
+                    print(f"  ! INCONSISTENT: s{sid} expects ffn {expected}, "
+                        f"but batch {batch.batch_id} matched to {batch.mapped_FFN_id}")
+
         # server_a 的两个 batch 全部从 ffn_a 搬到 ffn_b,
         # server_b 的两个 batch 全部从 ffn_b 搬到 ffn_a.
         # 用 swap_batches_between_ffns 一次处理一对 batch (a 的一个 + b 的一个).
@@ -561,7 +579,21 @@ class PipelineScheduler:
             batch_id_b_last = batch_list_b[-1].batch_id
             batch_id_a_first = batch_list_a[0].batch_id
             batch_id_b_first = batch_list_b[0].batch_id
-    
+        # 取完 batch_id_a_last/first, batch_id_b_last/first 后
+        # 检测退化: 如果 a 或 b 的 first==last, 说明 server 实际只有"一个 batch 跑过状态机"的快照,
+        # 退化为按字典顺序取真正不同的两个 batch
+        if batch_id_a_first == batch_id_a_last:
+            batch_list = list(server_a.batches.values())
+            if len(batch_list) >= 2:
+                batch_id_a_first = (batch_list[0].batch_id
+                                    if batch_list[0].batch_id != batch_id_a_last
+                                    else batch_list[1].batch_id)
+        if batch_id_b_first == batch_id_b_last:
+            batch_list = list(server_b.batches.values())
+            if len(batch_list) >= 2:
+                batch_id_b_first = (batch_list[0].batch_id
+                                    if batch_list[0].batch_id != batch_id_b_last
+                                    else batch_list[1].batch_id)
         batch_a_last = self.stored_batches[batch_id_a_last]
         batch_a_first = self.stored_batches[batch_id_a_first]
         batch_b_last = self.stored_batches[batch_id_b_last]

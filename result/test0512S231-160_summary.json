@@ -1,5 +1,6 @@
 {
   "finished_requests": 96001,
+  "global_time": 632558,
   "generated_tokens": 52136009,
   "avg_processing_time": 123262.43476630452,
   "avg_total_time_with_queue": 216893.77118988344,

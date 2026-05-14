@@ -568,7 +568,10 @@ class Multitype_Agent_Generator:
                 if self.use_prediction_agent:
                     if new_req.length < 16384:
                         self.agent_generator.process_request(new_req)
+                if self.is_MoE:
+                    new_req.is_MoE = True
                 requests.append(new_req)
+                
                 self.gen_tot += 1
         return requests
 
@@ -591,7 +594,8 @@ class Multitype_Agent_Generator:
                 new_req = Request(rid=self.next_request_id, arrival_time=global_time, length=length, max_possible_length=self.max_length,  next_token_prob=self.next_token_prob, seed=self.seed)
                 new_req.generated_time = global_time
                 self.next_request_id += 1
-
+                if self.is_MoE:
+                    new_req.is_MoE = True
                 requests.append(new_req)
                 self.gen_tot += 1
 
@@ -610,7 +614,8 @@ class Multitype_Agent_Generator:
                     if new_req.length < 16384:
                         self.agent_generator.process_request(new_req)
                 self.next_request_id += 1
-
+                if self.is_MoE:
+                    new_req.is_MoE = True
                 requests.append(new_req)
                 self.gen_tot += 1
                 

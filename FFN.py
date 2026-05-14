@@ -256,8 +256,17 @@ class BatchList:
         if old_node is None:
             raise ValueError(f"Batch {old_batch_id} not found in BatchList, cannot replace")
         if new_batch.batch_id in self.map:
-            raise ValueError(f"Batch {new_batch.batch_id} already in BatchList, cannot replace")
-
+            existing_node = self.map[new_batch.batch_id]
+            existing = existing_node.batch
+            raise ValueError(
+                f"Batch {new_batch.batch_id} already in BatchList; cannot replace.\n"
+                f"  trying to insert: id={new_batch.batch_id}, "
+                f"mapped_FFN_id={new_batch.mapped_FFN_id}\n"
+                f"  existing entry  : id={existing.batch_id}, "
+                f"mapped_FFN_id={existing.mapped_FFN_id}\n"
+                f"  existing is new_batch? {existing is new_batch}\n"
+                f"  self (BatchList of FFN)... old_batch_id passed in = {old_batch_id}"
+            )
         new_node = BatchNode(new_batch.batch_id, new_batch)
         new_node.load_ready = old_node.load_ready if inherit_load_ready else False
 

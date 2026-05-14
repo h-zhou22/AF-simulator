@@ -56,6 +56,10 @@ class Request:
         # self.loading_time = self.alpha_L * self.length + self.beta_L
         # 初始的request默认已经装填在Batch当中, 不需要load耗时, 但evict之后失去特权
         # 对这些request, 计算时长的时候需要增加初始的load用时
+        # ---- MoE ----
+        self.is_MoE = False             # generator 设置
+        self.expert_ids = []            # 长度 4 的 distinct expert id 列表
+        self.completed_experts = 0      # 已完成的 expert 任务数, MoE worker 完成时 +1
 
     def do_new_round(self, current_time, stats):
     # Increase the length and decide whether to continue generating tokens
