@@ -107,6 +107,7 @@ class Server:
                 else:
                     if batch.moe_completed:
                         batch.moe_completed = False
+                        batch.is_MoE_dispatched = False
                         batch.F2A_transmission(current_time, alpha_T, beta_T)
                         self.first_finished_batch_id = self.last_finished_batch_id
                         self.last_finished_batch_id = batch_id

@@ -448,6 +448,8 @@ class MoEFFN:
         self.current_request = None
         self.current_batch = None
 
+        self.ever_served_request = 0
+
     def load_task(self, current_time, request, batch):
         assert not self.current_busy
         self.current_busy = True
@@ -455,6 +457,7 @@ class MoEFFN:
         self.current_batch = batch
         cost = self.alpha_F * 1 + self.beta_F
         self.current_ending = current_time + cost
+        self.ever_served_request += 1
 
     def cycle_work(self, current_time, *args, **kwargs):
         """*args, **kwargs 是为了和 FFN.cycle_work / dynamic_FFN.cycle_work 签名兼容
@@ -466,7 +469,13 @@ class MoEFFN:
         # 完成
         req = self.current_request
         batch = self.current_batch
+        # 先完成队列迁移
+        req.task_locations.pop(self.expert_id, None)
+        
         batch.on_moe_expert_done(current_time, req)
         self.current_busy = False
         self.current_request = None
         self.current_batch = None
+
+    def print_debug_information(self):
+        print("FFN ID:{}, Expert ID: {}, Ever served req: {}, current bust:{}".format(self.worker_id, self.expert_id, self.ever_served_request, self.current_busy))

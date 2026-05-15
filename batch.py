@@ -72,6 +72,8 @@ class Batch:
         self.moe_pending_count = 0       # 还有多少 (request, expert) 任务未完成
         self.moe_completed = False       # MoE worker 完成最后一个任务时设, Server.cycle_work 消费
 
+        self.scheduler = None
+
     def is_due(self, current_time) -> bool:
         """current_ending 落在 [current_time, current_time+1) 内视为本 cycle 到期."""
         return current_time + 1 > self.current_ending
@@ -234,15 +236,29 @@ class Batch:
         for req in self.requests:
             assert req.is_MoE, f"request {req.rid} not is_MoE but batch in MoE dispatch"
             req.completed_experts = 0
+            req.remaining_unfinished_experts = len(req.expert_ids)
+            req.extra_reduce = 0
+            req.task_locations = {}
             self.moe_pending_count += len(req.expert_ids)
 
     def on_moe_expert_done(self, current_time, request):
         """MoEFFN worker 完成一个 (request, expert) 任务时调用."""
         request.completed_experts += 1
+        request.remaining_unfinished_experts -= 1
+
         self.moe_pending_count -= 1
+        
+        if self.scheduler is not None and request.remaining_unfinished_experts > 0:
+            self.scheduler.migrate_request_tasks_after_done(request)
+
+        if (self.scheduler is not None
+            and self.scheduler.starve_avoid_3
+            and 0 < self.moe_pending_count < self.scheduler.starve3_threshold):
+            self.scheduler.promote_batch_to_zero(self)
+
         if self.moe_pending_count == 0:
-            # 整个 batch 完成 MoE 阶段, 等 Server.cycle_work 检查并触发 F2A
             self.moe_completed = True
+    
     # def has_free_slot_in_dynamic_size(self, current_time)->bool:
     #     if self.batch_size_limit <= self.num_req:
     #         return False

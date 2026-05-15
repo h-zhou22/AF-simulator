@@ -60,6 +60,12 @@ class Request:
         self.is_MoE = False             # generator 设置
         self.expert_ids = []            # 长度 4 的 distinct expert id 列表
         self.completed_experts = 0      # 已完成的 expert 任务数, MoE worker 完成时 +1
+        self.remaining_unfinished_experts = 0  # 剩余未完成的 expert 任务数, MoE worker 完成时 -1
+
+        self.extra_reduce = 0          # 拥塞方案 2 累计的虚降数
+        self.dispatch_time = -1        # MoE dispatch 时的 current_time, 用于方案 2 计时
+        self.time_bound = 0            # 方案 2 的阈值, dispatch 时由 scheduler 计算
+        self.task_locations = {}       # eid -> (sub_q_idx) 反向索引, 用于 O(1) 主动迁移
 
     def do_new_round(self, current_time, stats):
     # Increase the length and decide whether to continue generating tokens
@@ -151,6 +157,11 @@ class Request:
         # else:
         self.loading_finished_time = current_time + (self.alpha_L*self.length + self.beta_L)
         self.status = 5
+
+    @property
+    def priority_level(self):
+        """调度优先级标签. 0 = 最紧迫 (sub_q[0]); 4 = 最低优先级."""
+        return max(0, self.remaining_unfinished_experts - self.extra_reduce)
 
     def print_debug_information(self):
         print("Request ID: {}, Length: {}, Original length: {}, Rounds:{} ".format(self.rid, self.length, self.original_len,self.rounds))

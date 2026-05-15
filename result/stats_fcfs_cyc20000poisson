@@ -1,0 +1,57 @@
+{
+  "completed_requests": 798337,
+  "avg_latency": 23.931442486067915,
+  "expert_needed_at_generation": [
+    400599,
+    400989,
+    399796,
+    400280,
+    400295,
+    399651,
+    400076,
+    399506
+  ],
+  "expert_needed_at_completion": [
+    399642,
+    399816,
+    398879,
+    399273,
+    399348,
+    398691,
+    399131,
+    398568
+  ],
+  "starve_c_total": 0,
+  "starve_c_per_level": {
+    "2": 0,
+    "3": 0,
+    "4": 0
+  },
+  "starve_t_total": 0,
+  "outliers": {
+    "threshold": 47.86288497213583,
+    "long_threshold": 119.65721243033957,
+    "dead_threshold": 478.6288497213583,
+    "completed_outliers": 30310,
+    "completed_long_outliers": 0,
+    "completed_dead_outliers": 0,
+    "pending_outliers": 243,
+    "pending_long_outliers": 0,
+    "pending_dead_outliers": 0,
+    "total_outliers": 30553,
+    "total_long_outliers": 0,
+    "total_dead_outliers": 0
+  },
+  "config": {
+    "strategy": "fcfs",
+    "gen": "poisson",
+    "rate": 40,
+    "cycles": 20000,
+    "num_experts": 8,
+    "workers_per_expert": 20,
+    "c2": 20,
+    "c3": 50,
+    "c4": 100,
+    "seed": 42
+  }
+}

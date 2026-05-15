@@ -8,7 +8,7 @@ from stats import StatsCollector
 from request import Request
 from FFN import FFN, dynamic_FFN, MoEFFN
 from batch import Batch
-from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler, MoEScheduler
+from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler, MoEScheduler, MoEPriorityScheduler, PriorityExpertQueue 
 from collections import deque
 from arranger import GlobalArranger, GreedyArranger, MultitypeArranger
 
@@ -64,11 +64,15 @@ def parse_args():
     
     parser.add_argument("--num_FFN", type=int, default=1,
                         help="number of FFN workers to create")
+    parser.add_argument("--num_experts", type=int, default=8,
+                        help="number of MoE experts")
 
     parser.add_argument("--alpha_A", type=float, default=0.1)
     parser.add_argument("--alpha_T", type=float, default=0.001)
     parser.add_argument("--alpha_F", type=float, default=0.1)
     parser.add_argument("--alpha_L", type=float, default=1)
+    parser.add_argument("--alpha_F_moe", type=float, default=0.5)
+    parser.add_argument("--beta_F_moe", type=float, default=2.5)
     parser.add_argument("--beta_A", type=float, default=512.0)
     parser.add_argument("--beta_T", type=float, default=16.0)
     parser.add_argument("--beta_F", type=float, default=512.0)
@@ -91,6 +95,19 @@ def parse_args():
 
     parser.add_argument("--is_MoE", action="store_true",
                         help="Use MoE.")
+    parser.add_argument("--max_cycles", type=int, default=2147483647)
+
+    parser.add_argument("--moe_starve_1", action="store_true",
+                    help="MoE 拥塞避免方案 1: c_i 阈值")
+    parser.add_argument("--moe_starve_2", action="store_true",
+                        help="MoE 拥塞避免方案 2: time bound 降级")
+    parser.add_argument("--moe_starve_3", action="store_true",
+                        help="MoE 拥塞避免方案 3: batch 收尾提升")
+    parser.add_argument("--moe_c2", type=int, default=20)
+    parser.add_argument("--moe_c3", type=int, default=50)
+    parser.add_argument("--moe_c4", type=int, default=100)
+    parser.add_argument("--moe_starve3_threshold", type=int, default=40,
+                        help="方案 3 触发阈值: batch.moe_pending_count < 此值时提升")
 
     return parser.parse_args()
 
@@ -490,24 +507,26 @@ def main():
             basic_length=args.basic_num,
             alpha_L= args.alpha_L,
             beta_L= args.beta_L,
-            is_MoE= args.is_MoE
+            is_MoE= args.is_MoE,
+            num_experts = args.num_experts
         ) 
     else:
         raise NotImplementedError("Not Implemented Yet in generator.py")
 
     # 这里在修改FFN逻辑之后需要修改
-    FFN_workers = []
     num_FFN = args.num_FFN
-    for FFN_id in range(num_FFN):
-        if args.FFN_type == 0 :
-            FFN_worker = FFN(FFN_id)
-        elif args.FFN_type == 1:
-            FFN_worker =FFN(FFN_id)
-        elif args.FFN_type == 3:
-            FFN_worker = dynamic_FFN(FFN_id, should_serve_num_batches= 0, allow_exchange=args.allow_exchange)
-        elif args.FFN_type == 4:
-            FFN_worker = FFN(FFN_id)
-        FFN_workers.append(FFN_worker)
+    if not args.is_MoE:
+        FFN_workers = []
+        for FFN_id in range(num_FFN):
+            if args.FFN_type == 0 :
+                FFN_worker = FFN(FFN_id)
+            elif args.FFN_type == 1:
+                FFN_worker =FFN(FFN_id)
+            elif args.FFN_type == 3:
+                FFN_worker = dynamic_FFN(FFN_id, should_serve_num_batches= 0, allow_exchange=args.allow_exchange)
+            elif args.FFN_type == 4:
+                FFN_worker = FFN(FFN_id)
+            FFN_workers.append(FFN_worker)
 
     global_time = 0
     finished_requests = 0
@@ -600,17 +619,66 @@ def main():
                 f"num_FFN ({args.num_FFN}) must >= num_experts ({args.num_experts}) for MoE")
         if not args.is_MoE:
             raise ValueError("FFN_type=5 (MoE) requires --is_MoE")
-        from FFN import MoEFFN
         FFN_workers = []
         for wid in range(args.num_FFN):
             eid = wid % args.num_experts
             FFN_workers.append(MoEFFN(wid, eid, args.alpha_F_moe, args.beta_F_moe))
+        for server in servers:
+            server.is_MoE_mode = True
+        for batch in stored_batches.values():
+            batch.is_MoE_mode = True
+        least_num_to_fill = args.num_batch * args.batch_size 
+        if args.basic_num < least_num_to_fill:
+            print("Basic num:{}, least to fill:{}".format(args.basic_num, least_num_to_fill))
+            raise ValueError("Basic number of requests should be larger than the total batch capacity")
+        initial_reqs = generator.do_initial_generation()
+        for req in initial_reqs:
+            arranger.inqueue_request(req)
 
         scheduler = MoEScheduler(
             arranger, servers, FFN_workers, stats, buffer, stored_batches,
             alpha_A, beta_A, alpha_T, beta_T,
             args.alpha_F_moe, args.beta_F_moe,
             num_experts=args.num_experts,
+            initially_full=True,
+        )
+
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                arranger.inqueue_request(req)
+            scheduler.do_cycle_work(global_time)
+            finished_requests = stats.finished_request
+            global_time += 1
+    elif args.FFN_type == 5:
+        # MoE with priority queue + optional starvation avoidance
+        if args.num_FFN < args.num_experts:
+            raise ValueError(
+                f"num_FFN ({args.num_FFN}) must >= num_experts ({args.num_experts}) for MoE")
+        if not args.is_MoE:
+            raise ValueError("FFN_type=5 requires --is_MoE")
+        FFN_workers = []
+        for wid in range(args.num_FFN):
+            eid = wid % args.num_experts
+            FFN_workers.append(MoEFFN(wid, eid, args.alpha_F_moe, args.beta_F_moe))
+        for server in servers:
+            server.is_MoE_mode = True
+
+        # prefill
+        initial_reqs = generator.do_initial_generation()
+        for req in initial_reqs:
+            arranger.inqueue_request(req)
+
+        scheduler = MoEPriorityScheduler(
+            arranger, servers, FFN_workers, stats, buffer, stored_batches,
+            alpha_A, beta_A, alpha_T, beta_T,
+            args.alpha_F_moe, args.beta_F_moe,
+            num_experts=args.num_experts,
+            starve_avoid_1=args.moe_starve_1,
+            starve_avoid_2=args.moe_starve_2,
+            starve_avoid_3=args.moe_starve_3,
+            c2=args.moe_c2, c3=args.moe_c3, c4=args.moe_c4,
+            starve3_threshold=args.moe_starve3_threshold,
             initially_full=True,
         )
 

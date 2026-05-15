@@ -5,7 +5,7 @@ from request import Request
 from batch import Batch
 from attention import Server
 from typing import List, Dict, Tuple
-from collections import defaultdict, deque
+from collections import defaultdict, deque, OrderedDict
 from FFN import FFN, dynamic_FFN, MoEFFN
 from arranger import GlobalArranger, GreedyArranger, MultitypeArranger
 from dataclasses import dataclass
@@ -1007,6 +1007,7 @@ class MoEScheduler:
         for w in FFN_workers:
             assert hasattr(w, 'expert_id'), "MoEScheduler requires MoEFFN workers"
             self.workers_by_expert[w.expert_id].append(w)
+        
         # 确保每种 expert 都有 worker
         for eid in range(num_experts):
             if not self.workers_by_expert[eid]:
@@ -1033,9 +1034,14 @@ class MoEScheduler:
         batch.is_MoE_dispatched = True
         # batch.status 此时是 6 (A2F 完成, 待 FFN), 改成 2 (FFN 处理中)
         batch.status = 2
+        total_tasks = 0
         for req in batch.requests:
             for eid in req.expert_ids:
                 self.expert_queues[eid].append((req, batch))
+                total_tasks += 1
+        print(f"[dispatch] batch {batch.batch_id} dispatched, "
+          f"requests={len(batch.requests)}, total_tasks={total_tasks}, "
+          f"pending={batch.moe_pending_count}")
 
     def do_cycle_work(self, current_time):
         # Stage 1: server cycle (推进 batch 状态: F2A→A, A2F→6, attention→A2F, FFN→F2A)
@@ -1081,3 +1087,314 @@ class MoEScheduler:
         if current_time % 5000 == 0:
             qlens = [len(self.expert_queues[i]) for i in range(self.num_experts)]
             print(f"[cycle {current_time}] expert queue lens: {qlens}")  
+            for w in self.FFN_workers:
+                w.print_debug_information()
+        test_print = False
+        if test_print:
+            if current_time % 1000 == 0:
+                for batch in self.stored_batches.values():
+                    batch.print_debug_information()
+
+
+
+class PriorityExpertQueue:
+    """
+    单 expert 的优先队列, 内部 5 个 sub_q[0..4]:
+      sub_q[0] = 救援队列 (方案 2/3 提升), 最高优先级
+      sub_q[k] (k=1..4) = priority_level==k 的 (req, eid) 任务
+
+    sub_q 实现: OrderedDict, key=(req.rid, eid), value=(req, eid).
+      - 入队: __setitem__, O(1), 追加到末尾 (FCFS)
+      - 出队首: 用 next(iter(...)) + pop, O(1)
+      - 任意位置删除: pop(key), O(1)
+
+    add_task / remove_task / move_task 全部 O(1).
+    """
+
+    NUM_LEVELS = 5    # 0..4
+
+    def __init__(self, expert_id, c_threshold=None):
+        """
+        c_threshold: dict {k: c_k}, sub_q[k] 连续 c_k 个 task 处理后仍没被取过就强制取.
+          缺省 {2: 20, 3: 50, 4: 100} (你给的值). None 表示不启用方案 1.
+        """
+        self.expert_id = expert_id
+        self.sub_q = [OrderedDict() for _ in range(self.NUM_LEVELS)]
+
+        # 方案 1 计数: served_count = 本 queue 至今处理过的 task 总数
+        # last_served[k] = 上次从 sub_q[k] 取 task 时的 served_count
+        self.served_count = 0
+        self.last_served = [0] * self.NUM_LEVELS
+        self.c_threshold = c_threshold      # dict 或 None
+
+    def add_task(self, req, eid, batch, level=None):
+        """入队. level 默认按 req.priority_level."""
+        if level is None:
+            level = req.priority_level
+        key = (req.rid, eid)
+        self.sub_q[level][key] = (req, eid, batch)
+        req.task_locations[eid] = level     # 反向索引
+
+    def remove_task(self, req, eid):
+        """从所在 sub_q 删除. 调用方保证该 task 在队列中."""
+        level = req.task_locations.pop(eid, None)
+        if level is None:
+            return False
+        key = (req.rid, eid)
+        self.sub_q[level].pop(key, None)
+        return True
+
+    def move_task(self, req, eid, new_level):
+        """主动迁移单个 task 到 sub_q[new_level]. O(1)."""
+        old_level = req.task_locations.get(eid)
+        if old_level is None:
+            return    # 该 task 已不在本 queue (可能刚被取走)
+        if old_level == new_level:
+            return
+        key = (req.rid, eid)
+        item = self.sub_q[old_level].pop(key, None)
+        if item is None:
+            return
+        self.sub_q[new_level][key] = item
+        req.task_locations[eid] = new_level
+
+    def total_len(self):
+        return sum(len(q) for q in self.sub_q)
+
+    def per_level_lens(self):
+        return [len(q) for q in self.sub_q]
+
+    def pop_task(self):
+        """
+        取一个最高优先级的 task 给 worker. 返回 (req, eid) 或 None.
+        优先级:
+          1. sub_q[0] 总是优先
+          2. 方案 1 starve 检查 (从低优先级 k=4..2 开始, 最先 starve 的先救)
+          3. 否则按 k=1..4 顺序取
+        """
+        # Step 1: 救援队列
+        if self.sub_q[0]:
+            return self._pop_from(0)
+
+        # Step 2: starve 检查 (k=4..2, 因为 c_k 你设为 c2<c3<c4, 但实际 k 越大越易 starve;
+        # 这里我们按"哪个超阈值最久"找, 简化为按 k 顺序找第一个超阈值的)
+        if self.c_threshold is not None:
+            # 从 k=2 开始检查 (优先缓解高优先级队列的starvation问题)
+            for k in (2, 3, 4):
+                c_k = self.c_threshold.get(k)
+                if c_k is None:
+                    continue
+                if not self.sub_q[k]:
+                    """如果队列空了, 则重新开始计时"""
+                    self.last_served[k] = self.served_count
+                elif self.sub_q[k] and (self.served_count - self.last_served[k]) >= c_k:
+                    return self._pop_from(k)
+
+        # Step 3: 正常优先级
+        for k in (1, 2, 3, 4):
+            if self.sub_q[k]:
+                return self._pop_from(k)
+
+        return None
+
+    def _pop_from(self, k):
+        """从 sub_q[k] 取队首 (FCFS), 更新 served 计数."""
+        # OrderedDict 的 popitem(last=False) 取队首 (FCFS)
+        key, (req, eid, batch) = self.sub_q[k].popitem(last=False)
+        req.task_locations.pop(eid, None)
+        self.served_count += 1
+        self.last_served[k] = self.served_count
+        return (req, eid, batch)
+
+
+class MoEPriorityScheduler:
+    """
+    MoE FFN_type=5: 带优先级队列 + 可选拥塞避免的 MoE 调度器.
+
+    优先级核心: 每个 expert queue 内 5 个子队列 sub_q[0..4], 按 request 的 priority_level 分桶.
+    迁移策略: 主动迁移 (worker 完成一个 task 后, 同 request 仍排队的 task 立刻挪到 sub_q[k-1]).
+    """
+
+    def __init__(self, arranger, servers, FFN_workers, stats, buffer, stored_batches,
+                 alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F,
+                 num_experts=8,
+                 starve_avoid_1=False,
+                 starve_avoid_2=False,
+                 starve_avoid_3=False,
+                 c2=20, c3=50, c4=100,
+                 starve3_threshold=40,
+                 initially_full=False):
+        self.arranger = arranger
+        self.servers = servers
+        self.FFN_workers = FFN_workers
+        self.stats = stats
+        self.buffer = buffer
+        self.stored_batches = stored_batches
+        self.alpha_A, self.beta_A = alpha_A, beta_A
+        self.alpha_T, self.beta_T = alpha_T, beta_T
+        self.alpha_F, self.beta_F = alpha_F, beta_F
+
+        self.num_experts = num_experts
+
+        # 三个拥塞避免开关
+        self.starve_avoid_1 = starve_avoid_1
+        self.starve_avoid_2 = starve_avoid_2
+        self.starve_avoid_3 = starve_avoid_3
+        self.starve3_threshold = starve3_threshold
+
+        # PriorityExpertQueue 初始化
+        # Threshold: 每个队列有多长时间没有被处理就会在下一轮强制被处理
+        c_threshold = {2: c2, 3: c3, 4: c4} if starve_avoid_1 else None
+        self.expert_queues = [
+            PriorityExpertQueue(eid, c_threshold=c_threshold)
+            for eid in range(num_experts)
+        ]
+
+        # worker 按 expert_id 分桶
+        self.workers_by_expert = defaultdict(list)
+        for w in FFN_workers:
+            assert hasattr(w, 'expert_id'), "MoEPriorityScheduler requires MoEFFN workers"
+            self.workers_by_expert[w.expert_id].append(w)
+        for eid in range(num_experts):
+            if not self.workers_by_expert[eid]:
+                raise ValueError(f"No MoEFFN worker for expert {eid}")
+
+        # 给每个 batch 注入 scheduler 引用 (供 batch.on_moe_expert_done 调用迁移函数)
+        for batch in self.stored_batches.values():
+            batch.scheduler = self
+            batch.is_MoE_mode = True
+
+        # 初始填充
+        self.initially_full = initially_full
+        if self.initially_full:
+            self.do_initialize_filling()
+
+    def do_initialize_filling(self):
+        tot_batch_size = sum(b.batch_size for b in self.stored_batches.values())
+        if self.arranger.num_req_inque < tot_batch_size:
+            print(f"Basic number:{self.arranger.num_req_inque}, "
+                  f"actually needed:{tot_batch_size}")
+            raise ValueError("Not enough requests to fill all batches")
+        for batch in self.stored_batches.values():
+            self.arranger.do_initial_filling(batch)
+
+    def _dispatch_moe_batch(self, batch, current_time):
+        """把一个 batch 拆成 (req, expert) 任务投入 expert queue."""
+        batch.is_MoE_mode = True
+        batch.prepare_moe_dispatch()
+        batch.is_MoE_dispatched = True
+        batch.status = 2
+
+        for req in batch.requests:
+            # 方案 2: 记录 dispatch 时刻和 time_bound
+            req.dispatch_time = current_time
+            if self.starve_avoid_2:
+                max_qlen = max(
+                    self.expert_queues[eid].total_len() for eid in req.expert_ids
+                )
+                req.time_bound = 2 * max_qlen
+            else:
+                req.time_bound = 0    # 不启用就不算
+
+            # task 入队 (按 priority_level = 4)
+            for eid in req.expert_ids:
+                self.expert_queues[eid].add_task(req, eid, batch)
+
+    def migrate_request_tasks_after_done(self, request):
+        """一个 task 完成后, 把该 request 仍在排队的 task 从 sub_q[k] 移到 sub_q[k-1].
+
+        request.task_locations 给出 eid -> 当前 sub_q level.
+        新的 priority_level 由 property 算 (remaining_experts - extra_reduce).
+        遍历 task_locations 复制一份 (因为 move_task 会修改它).
+        """
+        new_level = request.priority_level
+        locations_snapshot = dict(request.task_locations)
+        for eid, _old_level in locations_snapshot.items():
+            self.expert_queues[eid].move_task(request, eid, new_level)
+
+    def promote_batch_to_zero(self, batch):
+        """方案 3: 把 batch 内所有未完成 request 的所有 task 主动迁到 sub_q[0]."""
+        for req in batch.requests:
+            if req.priority_level == 0:
+                continue
+            if not req.task_locations:
+                continue
+            # 设 extra_reduce 让 priority_level 变 0
+            req.extra_reduce = req.remaining_experts
+            locations_snapshot = dict(req.task_locations)
+            for eid, _old_level in locations_snapshot.items():
+                self.expert_queues[eid].move_task(req, eid, 0)
+
+    def check_time_bound_for_all(self, current_time):
+        """方案 2: 每 cycle 扫所有 status==2 batch 内的 request, 检查 time_bound."""
+        for batch in self.stored_batches.values():
+            if batch.status != 2 or not batch.is_MoE_dispatched:
+                continue
+            for req in batch.requests:
+                if req.remaining_experts <= 0:
+                    continue
+                if req.priority_level == 0:
+                    continue    # 已经在最高优先级, 不再降
+                if not req.task_locations:
+                    continue
+                if current_time - req.dispatch_time >= req.time_bound:
+                    # 触发降级
+                    req.extra_reduce += 1
+                    req.dispatch_time = current_time    # 重置计时, 下个 bound 后再降
+                    new_level = req.priority_level
+                    locations_snapshot = dict(req.task_locations)
+                    for eid, _old_level in locations_snapshot.items():
+                        self.expert_queues[eid].move_task(req, eid, new_level)
+
+    def do_cycle_work(self, current_time):
+        # Stage 1: server cycle
+        for server in self.servers:
+            server.cycle_work(current_time, self.stats, None, self.alpha_T, self.beta_T)
+
+        # Stage 2: evict
+        for server in self.servers:
+            if server.compute_memory_usage() > server.memory_capacity + server.dynamic_space:
+                server.evict_requests(current_time)
+            evicted = server.evict_out_requests(current_time)
+            if evicted:
+                self.arranger.evict_all_requests(evicted)
+                self.stats.record_eviction(len(evicted))
+
+        # Stage 3: arrange
+        self.arranger.arrange_requests(current_time)
+
+        # Stage 4: dispatch status==6 batches
+        for batch in self.stored_batches.values():
+            if batch.status == 6 and not batch.is_MoE_dispatched:
+                self._dispatch_moe_batch(batch, current_time)
+
+        # Stage 5: 方案 2 时间检查 (扫所有 status==2 的 request)
+        if self.starve_avoid_2:
+            self.check_time_bound_for_all(current_time)
+
+        # Stage 6: worker 取 task
+        for eid in range(self.num_experts):
+            q = self.expert_queues[eid]
+            for w in self.workers_by_expert[eid]:
+                if not w.current_busy:
+                    task = q.pop_task()
+                    if task is not None:
+                        req, _eid, batch = task
+                        w.load_task(current_time, req, batch)
+
+        # Stage 7: worker tick
+        for w in self.FFN_workers:
+            w.cycle_work(current_time)
+
+        # Stage 8: attention
+        for server in self.servers:
+            server.attention_work(current_time, self.alpha_A, self.beta_A)
+
+        # 诊断打印
+        if current_time % 5000 == 0:
+            print(f"[cycle {current_time}] expert queues:")
+            for eid in range(self.num_experts):
+                lens = self.expert_queues[eid].per_level_lens()
+                if any(lens):
+                    print(f"  expert {eid}: sub_q={lens}, "
+                          f"served={self.expert_queues[eid].served_count}")

@@ -508,7 +508,8 @@ class Multitype_Agent_Generator:
                 use_prediction_agent = True,
                 alpha_L = 1.0,
                 beta_L = 1.0,
-                is_MoE = False
+                is_MoE = False,
+                num_experts = 4
                 ):
         """
         :param rate: 每多少个 cycle 生成一个 request（例如 rate=5 表示每 5 cycle 生成一个）
@@ -516,6 +517,8 @@ class Multitype_Agent_Generator:
         """
         self.next_token_prob = next_token_prob
         self.rng = random.Random(seed)
+        MoE_seed = 1
+        self.rng_MoE = random.Random(MoE_seed)
         self.seed = seed
         self.agent_seed = agent_seed
         self.rate = rate
@@ -538,6 +541,7 @@ class Multitype_Agent_Generator:
         predictable_probability = 0.5
         self.agent_generator = PredictionAgent(p=predictable_probability, seed = agent_seed)
         self.is_MoE = is_MoE
+        self.num_experts = num_experts
 
     def generate_length(self):
         """
@@ -569,11 +573,15 @@ class Multitype_Agent_Generator:
                     if new_req.length < 16384:
                         self.agent_generator.process_request(new_req)
                 if self.is_MoE:
-                    new_req.is_MoE = True
+                    self.generate_MoE_type(new_req)
                 requests.append(new_req)
                 
                 self.gen_tot += 1
         return requests
+
+    def generate_MoE_type(self, request: Request):
+        request.is_MoE = True
+        request.expert_ids = self.rng_MoE.sample(range(self.num_experts), 4)
 
     def step(self, global_time):
         """
@@ -595,7 +603,7 @@ class Multitype_Agent_Generator:
                 new_req.generated_time = global_time
                 self.next_request_id += 1
                 if self.is_MoE:
-                    new_req.is_MoE = True
+                    self.generate_MoE_type(new_req)
                 requests.append(new_req)
                 self.gen_tot += 1
 
@@ -615,7 +623,7 @@ class Multitype_Agent_Generator:
                         self.agent_generator.process_request(new_req)
                 self.next_request_id += 1
                 if self.is_MoE:
-                    new_req.is_MoE = True
+                    self.generate_MoE_type(new_req)
                 requests.append(new_req)
                 self.gen_tot += 1
                 
