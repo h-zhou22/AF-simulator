@@ -1,11 +1,12 @@
 """
 独立 MoE 调度效率模拟器
 
-只模拟 generator + MoE FFN 两层. 用于对比四种调度策略:
+只模拟 generator + MoE FFN 两层. 用于对比五种调度策略:
   fcfs      : 每个 expert 一个 FIFO 队列
   level     : 每个 expert 拆 5 个子队列, 按 remaining_experts 优先级
   level_c   : level + 拥塞方案 1 (按 expert 服务次数计阈值)
   level_t   : level + 拥塞方案 2 (按 cycle 计 time bound)
+  sebf      : Smallest Effective Bottleneck First, bottleneck = 剩余 expert queue 总长度 max
 
 每个 expert 类型有 10 个 worker, 共 8 种 expert => 80 workers.
 单 task 处理时间 = 1 cycle. 每 request 随机 sample 4 种 distinct expert.
@@ -15,6 +16,7 @@
   python3 moe_sim.py --strategy=level
   python3 moe_sim.py --strategy=level_c --c2=20 --c3=50 --c4=100
   python3 moe_sim.py --strategy=level_t
+  python3 moe_sim.py --strategy=sebf
 """
 
 import random
@@ -43,7 +45,8 @@ class Request:
         self.extra_reduce = 0
         self.dispatch_time = generated_time
         self.time_bound = 0
-        # eid -> sub_q_level (反向索引, level queue 用; FCFS 不用)
+        # eid -> sub_q_level (level 系列用) 或 1 (sebf 用) 的反向索引
+        # FCFS 不用; 表示 "req 在该 eid 上还有 task 未处理"
         self.task_locations = {}
 
     @property
@@ -58,12 +61,14 @@ class Request:
 class Generator:
     """三种分布选一种: fixed / uniform / poisson / geometric. 均值都是 rate."""
 
-    def __init__(self, rate=20, num_experts=8, distribution='fixed', seed=42):
+    def __init__(self, rate=20, num_experts=8, distribution='fixed', seed=42, gauss_sigma=None):
         self.rate = rate
         self.num_experts = num_experts
         self.distribution = distribution
         self.rng = random.Random(seed)
         self.next_rid = 0
+
+        self.gauss_sigma = gauss_sigma if gauss_sigma is not None else rate / 3.0
 
     def _sample_count(self):
         if self.distribution == 'fixed':
@@ -90,6 +95,10 @@ class Generator:
             # 实际只是想要"非均匀波动", 用 geometric scaling: 50% 概率生成 rate 个, 50% 生成 0 个? 太粗暴.
             # 折中: 每个 cycle 生成 Geom(1/rate)*rate 数量个 — 期望 rate, 方差大.
             return min(int(self.rng.expovariate(1.0 / self.rate)), 10 * self.rate)
+        elif self.distribution == 'gaussian':
+            # 正态分布 N(rate, sigma^2), 取 round 并 clip 到 [0, 10*rate]
+            x = self.rng.gauss(self.rate, self.gauss_sigma)
+            return max(0, min(int(round(x)), 10 * self.rate))
         else:
             raise ValueError(f"unknown distribution: {self.distribution}")
 
@@ -163,6 +172,17 @@ class Stats:
         for q in queues:
             if isinstance(q, FCFSQueue):
                 for (req, _eid) in q.q:
+                    if req.rid in seen:
+                        continue
+                    seen.add(req.rid)
+                    if current_time - req.generated_time >= threshold:
+                        pending_outliers += 1
+                    if current_time - req.generated_time >= long_threshold:
+                        pending_long_outliers += 1
+                    if current_time - req.generated_time >= dead_threashold:
+                        pending_dead_outliers += 1
+            elif isinstance(q, SEBFQueue):
+                for (req, _eid, _eqt) in q.q:
                     if req.rid in seen:
                         continue
                     seen.add(req.rid)
@@ -279,6 +299,68 @@ class FCFSQueue:
         if not self.q:
             return None
         return self.q.popleft()
+
+    def total_len(self):
+        return len(self.q)
+
+
+# ---------------------------------------------------------------------------
+# SEBF Queue (策略 5: Smallest Effective Bottleneck First)
+# ---------------------------------------------------------------------------
+class SEBFQueue:
+    """单 expert 的 SEBF 队列.
+
+    优化策略: 每 cycle 主循环开头调一次 sort_for_cycle(all_queues), 按
+    (bottleneck, enqueue_time) 排序; 本 cycle 内的 pop 直接按排序结果取.
+    "实时" 解读为 "cycle 内静态 + cycle 间动态" - bottleneck 用 cycle 开始时各 queue
+    长度算, cycle 内不变; cycle 之间 queue 长度变化都会反映到下次排序.
+
+    bottleneck = max(req 剩余未完成 eid 对应 queue 的总长度).
+    同 bottleneck 时按 enqueue_time FCFS.
+    """
+
+    def __init__(self, expert_id):
+        self.expert_id = expert_id
+        self.q = []                # list of (req, eid, enqueue_time)
+        self._counter = 0
+        self._sorted = []
+        self._sorted_idx = 0
+
+    def add_task(self, req, eid):
+        self.q.append((req, eid, self._counter))
+        self._counter += 1
+        # 复用 task_locations 跟踪 "req 在此 eid 上有 task 未处理"
+        # value 设 1 (SEBF 不需要 level, 只需要 eid 是否存在)
+        req.task_locations[eid] = 1
+
+    def sort_for_cycle(self, all_queues):
+        """每 cycle 主循环开头调一次. 按 (bottleneck, enqueue_time) 排序."""
+        def key(item):
+            req, _eid, eqt = item
+            remaining_eids = req.task_locations.keys()
+            if not remaining_eids:
+                return (float('inf'), eqt)
+            bottleneck = max(all_queues[e].total_len() for e in remaining_eids)
+            return (bottleneck, eqt)
+        self._sorted = sorted(self.q, key=key)
+        self._sorted_idx = 0
+
+    def pop_task(self):
+        """从 _sorted 取下一个. 已被取走的 task 自动跳过."""
+        while self._sorted_idx < len(self._sorted):
+            item = self._sorted[self._sorted_idx]
+            self._sorted_idx += 1
+            req, eid, _eqt = item
+            # eid 不在 task_locations 说明已被前面 pop 消费过, 跳过
+            if eid not in req.task_locations:
+                continue
+            try:
+                self.q.remove(item)
+            except ValueError:
+                continue
+            req.task_locations.pop(eid, None)
+            return (req, eid)
+        return None
 
     def total_len(self):
         return len(self.q)
@@ -420,6 +502,8 @@ class MoESimulator:
         # 队列
         if self.strategy == 'fcfs':
             self.queues = [FCFSQueue(eid) for eid in range(self.num_experts)]
+        elif self.strategy == 'sebf':
+            self.queues = [SEBFQueue(eid) for eid in range(self.num_experts)]
         elif self.strategy == 'level':
             self.queues = [PriorityExpertQueue(eid) for eid in range(self.num_experts)]
         elif self.strategy == 'level_c':
@@ -451,8 +535,8 @@ class MoESimulator:
     # -----------------------------------------------------------------
     def _on_task_done(self, req, eid):
         req.remaining_experts -= 1
-        if self.strategy != 'fcfs':
-            # 主动迁移: 同 req 仍排队的 task 从 sub_q[k] 移到 sub_q[k-1]
+        # 主动迁移: 仅 level 系列做 (sebf 通过 cycle 头部排序自然处理, fcfs 不需要)
+        if self.strategy in ('level', 'level_c', 'level_t'):
             new_level = req.priority_level
             if req.remaining_experts > 0:
                 snapshot = dict(req.task_locations)
@@ -516,6 +600,11 @@ class MoESimulator:
             if self.strategy == 'level_t':
                 self._check_time_bounds()
 
+            # 2.5) SEBF: 本 cycle 排一次序, 给后续 pop 用
+            if self.strategy == 'sebf':
+                for q in self.queues:
+                    q.sort_for_cycle(self.queues)
+
             # 3) Worker 取任务
             for eid in range(self.num_experts):
                 q = self.queues[eid]
@@ -523,6 +612,11 @@ class MoESimulator:
                     if w.busy:
                         continue
                     if isinstance(q, FCFSQueue):
+                        task = q.pop_task()
+                        if task is not None:
+                            req, e = task
+                            w.load(t, req, e)
+                    elif isinstance(q, SEBFQueue):
                         task = q.pop_task()
                         if task is not None:
                             req, e = task
@@ -539,7 +633,8 @@ class MoESimulator:
             # 4) Worker tick (完成的 task 触发 on_task_done)
             for w in self.workers:
                 w.tick(t, self._on_task_done)
-            if self.strategy != "fcfs":
+            # 诊断 (只 level 系列有 per_level_lens)
+            if self.strategy in ('level', 'level_c', 'level_t'):
                 if t % 1000 == 0:
                     print(f"[cycle {t}] expert queues:")
                     for eid in range(self.num_experts):
@@ -562,11 +657,13 @@ class MoESimulator:
 # ---------------------------------------------------------------------------
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--strategy', choices=['fcfs', 'level', 'level_c', 'level_t'],
+    p.add_argument('--strategy', choices=['fcfs', 'sebf', 'level', 'level_c', 'level_t'],
                    default='fcfs')
-    p.add_argument('--gen', choices=['fixed', 'uniform', 'poisson', 'geometric'],
+    p.add_argument('--gen', choices=['fixed', 'uniform', 'poisson', 'geometric', 'gaussian'],
                    default='fixed', help='generator distribution (mean = --rate)')
     p.add_argument('--rate', type=int, default=20, help='expected requests / cycle')
+    p.add_argument('--gauss_sigma', type=float, default=None,
+                   help='高斯分布标准差 (仅 --gen=gaussian 用; 默认 rate/3)')
     p.add_argument('--cycles', type=int, default=10000)
     p.add_argument('--num_experts', type=int, default=8)
     p.add_argument('--workers_per_expert', type=int, default=10)

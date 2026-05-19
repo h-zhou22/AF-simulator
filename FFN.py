@@ -404,13 +404,13 @@ class dynamic_FFN:
                   inherit_load_ready: bool = False):
         """用 new_batch 替换 pipeline 里 old_batch_id 对应的 batch, 保持其在流水线中的位置.
         允许替换任意状态的 batch:
-- status==2 (in-flight): old_batch 通过 current_ending 时间戳完成当前轮 FFN 工作,
-  new_batch 占据其 pipeline 槽位等待下一轮. 其实也没有太大影响,正常load即可
-- status==6 (已 load 但未开始): 由 Attention 侧负责丢弃当前轮 FFN 工作并重做 A2F.
-- status==4 (已传输但尚未到达): 由 Attention 侧负责丢弃当前轮 FFN 工作并重做 A2F.
-- 其他状态: 仅做节点身份替换.
+        - status==2 (in-flight): old_batch 通过 current_ending 时间戳完成当前轮 FFN 工作,
+        new_batch 占据其 pipeline 槽位等待下一轮. 其实也没有太大影响,正常load即可
+        - status==6 (已 load 但未开始): 由 Attention 侧负责丢弃当前轮 FFN 工作并重做 A2F.
+        - status==4 (已传输但尚未到达): 由 Attention 侧负责丢弃当前轮 FFN 工作并重做 A2F.
+        - 其他状态: 仅做节点身份替换.
 
-调用方约定: 通常仅由 swap_batches_between_ffns 调用, 后者保证两边对换原子完成.
+        调用方约定: 通常仅由 swap_batches_between_ffns 调用, 后者保证两边对换原子完成.
         """
         old_node = self.buffer.map.get(old_batch_id)
         if old_node is None:

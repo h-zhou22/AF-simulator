@@ -1,0 +1,57 @@
+{
+  "completed_requests": 798684,
+  "avg_latency": 23.548112895713448,
+  "expert_needed_at_generation": [
+    400401,
+    400330,
+    399628,
+    400038,
+    399972,
+    400362,
+    399590,
+    399723
+  ],
+  "expert_needed_at_completion": [
+    399618,
+    399561,
+    399157,
+    399339,
+    399439,
+    399643,
+    399054,
+    398925
+  ],
+  "starve_c_total": 0,
+  "starve_c_per_level": {
+    "2": 0,
+    "3": 0,
+    "4": 0
+  },
+  "starve_t_total": 0,
+  "outliers": {
+    "threshold": 47.096225791426896,
+    "long_threshold": 117.74056447856724,
+    "dead_threshold": 470.96225791426895,
+    "completed_outliers": 67364,
+    "completed_long_outliers": 10497,
+    "completed_dead_outliers": 6,
+    "pending_outliers": 218,
+    "pending_long_outliers": 27,
+    "pending_dead_outliers": 0,
+    "total_outliers": 67582,
+    "total_long_outliers": 10524,
+    "total_dead_outliers": 6
+  },
+  "config": {
+    "strategy": "level",
+    "gen": "gaussian",
+    "rate": 40,
+    "cycles": 20000,
+    "num_experts": 8,
+    "workers_per_expert": 20,
+    "c2": 20,
+    "c3": 50,
+    "c4": 100,
+    "seed": 42
+  }
+}
