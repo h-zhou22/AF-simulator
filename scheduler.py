@@ -173,6 +173,8 @@ class PipelineScheduler:
         self.FFN_upper_bound = len(self.FFN_workers)
         # 0 For Proper. 1 For Too many FFN, 2 For Too many Attention
         self.currently_utilize_status = 0
+        # FFN 不足 (status==2) 时退化为均匀分配 + AF比 swap, 此标志位记录
+        self.ffn_insufficient = False
 
         self.FFN_table = [[] for _ in range(self.max_AF_ratio + 1)]
 
@@ -223,6 +225,14 @@ class PipelineScheduler:
             self.AF_ratio_list[corresponding_level].append(server.server_id)
         # 再计算恰好匹配的情况下需要的FFN worker的数量区间
         self.update_AF_ratio_bounds()
+        # FFN 不足 (status==2): 原分配算法会触发 assert FFN_remaining >= 0,
+        # 改走均匀分配 (af_ratio 大的优先进人多组), 运行时用 AF比 swap.
+        if self.currently_utilize_status == 2:
+            self.ffn_insufficient = True
+            print("[PipelineScheduler] FFN insufficient (status==2), "
+                  "fall back to uniform assignment + AF-ratio swap.")
+            self._uniform_initial_assignment()
+            return
         # 标记上一层最后多出来的几个Attention server
         level_remainder = 0
         level_remain_list = []
@@ -424,6 +434,99 @@ class PipelineScheduler:
             print("Matched FFN worker: ", batch.mapped_FFN_id)
             # print("Matched FFN level: ", batch.FFN_level)
 
+    # ------------------------------------------------------------------
+    # FFN 不足时的退化路径: 均匀分配 + 基于 AF 比 (t_A/t_F) 的 swap
+    # ------------------------------------------------------------------
+    def _server_af_ratio(self, server) -> float:
+        """AF 比 = t_A / t_F. 越大 = attention 越主导 = 占 FFN 越少 (越友善)."""
+        t_A = self.alpha_A * sum(b.length for b in server.batches.values()) + self.beta_A
+        t_F = sum(self.alpha_F * max(b.num_req, 1) + self.beta_F
+                  for b in server.batches.values())
+        if t_F <= 0:
+            return float('inf')
+        return t_A / t_F
+
+    def _uniform_initial_assignment(self):
+        """均匀分配, af_ratio 大的进目标人数更多的组. 之后 construct_pipeline.
+
+        base = num_servers // num_FFN; 前 (num_servers % num_FFN) 个 FFN 目标 base+1.
+        af_ratio 降序填, 优先填目标人数多的 FFN.
+        """
+        base = self.num_servers // self.num_FFN
+        extra = self.num_servers % self.num_FFN
+        target_capacity = [base + 1 if f < extra else base for f in range(self.num_FFN)]
+        ffn_order = sorted(range(self.num_FFN), key=lambda f: -target_capacity[f])
+
+        ranked = sorted(self.servers, key=lambda s: -self._server_af_ratio(s))
+        idx = 0
+        for f in ffn_order:
+            cap = target_capacity[f]
+            for _ in range(cap):
+                if idx >= len(ranked):
+                    break
+                server = ranked[idx]
+                idx += 1
+                self.AF_match[server.server_id] = f
+                self.AF_graph[f].append(server.server_id)
+                server.map_to_FFN(f, 0)
+        # 接到对应 FFN 的流水线 (type=3 用 dynamic_FFN, 需 construct_pipeline)
+        for server in self.servers:
+            ffn_id = self.AF_match[server.server_id]
+            ffn_worker = self.FFN_workers[ffn_id]
+            for batch in server.batches.values():
+                ffn_worker.construct_pipeline(0, batch)
+
+    def _uniform_swap_balance(self, current_time):
+        """FFN 不足时的运行时 swap: 人多组 af_ratio 最小 <-> 人少组 af_ratio 最大,
+        差 >= 1 才换, 反复直到不满足. O(n) 每轮."""
+        max_iter = 100
+        for _ in range(max_iter):
+            non_empty = [f for f in range(self.num_FFN) if self.AF_graph[f]]
+            if len(non_empty) < 2:
+                break
+            f_big = max(non_empty, key=lambda f: len(self.AF_graph[f]))
+            f_small = min(non_empty, key=lambda f: len(self.AF_graph[f]))
+            if f_big == f_small or len(self.AF_graph[f_big]) - len(self.AF_graph[f_small]) <= 0:
+                break
+            a = min(self.AF_graph[f_big],
+                    key=lambda sid: self._server_af_ratio(self.servers[sid]))
+            b = max(self.AF_graph[f_small],
+                    key=lambda sid: self._server_af_ratio(self.servers[sid]))
+            af_a = self._server_af_ratio(self.servers[a])
+            af_b = self._server_af_ratio(self.servers[b])
+            if af_b - af_a >= 1.0:
+                self._uniform_apply_swap(current_time, a, b, f_big, f_small)
+                print(f"[pipeline uniform swap cycle {current_time}] swap server {a} "
+                      f"(FFN {f_big}, af={af_a:.2f}) <-> server {b} "
+                      f"(FFN {f_small}, af={af_b:.2f})")
+            else:
+                break
+
+    def _uniform_apply_swap(self, current_time, sa, sb, f1, f2):
+        """type=3 退化路径下交换两 server 的 FFN 归属.
+        用 modify_pipeline + construct_pipeline (dynamic_FFN) 而非 replace_batch."""
+        self.AF_match[sa] = f2
+        self.AF_match[sb] = f1
+        self.AF_graph[f1].remove(sa)
+        self.AF_graph[f1].append(sb)
+        self.AF_graph[f2].remove(sb)
+        self.AF_graph[f2].append(sa)
+        # 把 sa 的 batch 从 f1 流水线摘除, 接到 f2; sb 反之
+        for batch in self.servers[sa].batches.values():
+            self.FFN_workers[f1].modify_pipeline(current_time, batch.batch_id)
+        for batch in self.servers[sb].batches.values():
+            self.FFN_workers[f2].modify_pipeline(current_time, batch.batch_id)
+        for batch in self.servers[sa].batches.values():
+            self.FFN_workers[f2].construct_pipeline(current_time, batch)
+        for batch in self.servers[sb].batches.values():
+            self.FFN_workers[f1].construct_pipeline(current_time, batch)
+        self.servers[sa].map_to_FFN(f2, 0)
+        self.servers[sb].map_to_FFN(f1, 0)
+        self.servers[sa].reactivate_batches(current_time, self.alpha_A, self.beta_A,
+                                            self.alpha_T, self.beta_T)
+        self.servers[sb].reactivate_batches(current_time, self.alpha_A, self.beta_A,
+                                            self.alpha_T, self.beta_T)
+
     def update_AF_ratio_bounds(self):
         # 再计算恰好匹配的情况下需要的FFN worker的数量区间
         cnt_low = 0
@@ -455,7 +558,7 @@ class PipelineScheduler:
         self.Batch_FFN_unit_count.items(), key=lambda x: x[1], reverse=True)
 
         for server in self.servers:
-            server.update_FFN_level(self.alpha_A, self.beta_A)
+            server.update_FFN_level(self.alpha_A, self.beta_A, self.alpha_F, self.beta_F)
             self.server_FFN_unit_count[server.server_id] = server.weight
         self.server_FFN_unit_order = sorted(
             self.server_FFN_unit_count.items(), key=lambda x: x[1], reverse=True)
@@ -495,16 +598,21 @@ class PipelineScheduler:
             
             # 在free slot被填补之后，关注各个attention以及各个Batch的大小变化
             for server in self.servers:
-                server.update_FFN_level(self.alpha_A, self.beta_A)
-            exchange_pairs = self.find_swap_pairs()
-            for pair in exchange_pairs:
-                self.apply_swap_pair(current_time, pair[0], pair[1])
-                # TODO 在server当中维护两个Batch的归属信息、状态信息
-                self.servers[pair[0]].reactivate_batches(current_time, self.alpha_A, self.beta_A, self.alpha_T, self.beta_T)
-                self.servers[pair[1]].reactivate_batches(current_time, self.alpha_A, self.beta_A, self.alpha_T, self.beta_T)
-            
-            self.relocate_unpaired_deviated(current_time)
-            self.refresh_mixed_flags()
+                server.update_FFN_level(self.alpha_A, self.beta_A, self.alpha_F, self.beta_F)
+
+            if self.ffn_insufficient:
+                # FFN 不足: 走均匀分配 + AF比 swap, 跳过原 level-based swap/relocate
+                self._uniform_swap_balance(current_time)
+            else:
+                exchange_pairs = self.find_swap_pairs()
+                for pair in exchange_pairs:
+                    self.apply_swap_pair(current_time, pair[0], pair[1])
+                    # TODO 在server当中维护两个Batch的归属信息、状态信息
+                    self.servers[pair[0]].reactivate_batches(current_time, self.alpha_A, self.beta_A, self.alpha_T, self.beta_T)
+                    self.servers[pair[1]].reactivate_batches(current_time, self.alpha_A, self.beta_A, self.alpha_T, self.beta_T)
+
+                self.relocate_unpaired_deviated(current_time)
+                self.refresh_mixed_flags()
 
             for server in self.servers:
                 server.attention_work(current_time, self.alpha_A, self.beta_A)
@@ -645,9 +753,13 @@ class PipelineScheduler:
         raise ValueError(f"FFN {ffn_id} not found in FFN_table")   
 
     def _server_target_level(self, server) -> int:
-        """该 server 按当前权值'本应'所属的 level."""
-        server_weight = server.weight
-        # server_weight = server.compute_total_unit_cost(self.alpha_A, self.beta_A)
+        """该 server 按当前实时 attention/FFN 用时比'本应'所属的 level.
+
+        重要: 不读 server.weight 这个缓存字段 (可能更新不及时), 每次实时算.
+        分母用每个 batch 当前 num_req 算的 FFN 用时, 不再依赖 unit_FFN_time 常数.
+        """
+        server_weight = server.compute_total_unit_cost(
+            self.alpha_A, self.beta_A, self.alpha_F, self.beta_F)
         return min(math.floor(server_weight), self.max_AF_ratio)
 
     def find_swap_pairs(self) -> List[Tuple[int, int]]:
@@ -1398,3 +1510,702 @@ class MoEPriorityScheduler:
                 if any(lens):
                     print(f"  expert {eid}: sub_q={lens}, "
                           f"served={self.expert_queues[eid].served_count}")
+
+
+# ===========================================================================
+# 方案 1: BalancedAttnFFNScheduler (FFN_type=6)
+# ===========================================================================
+class BalancedAttnFFNScheduler:
+    """按 attention 节点 (server) 分配到 FFN, 但 FFN 内部用 FCFS (不维护流水线).
+    每 cycle 实时算每个 server 的 w = t_F / (t_A + t_F), 并维护每个 FFN 的 sum_w.
+    爆表 FFN (sum_w > 1) 内部 r < w 的 server 尝试与其它 FFN 的 server 交换.
+
+    交换准则 (A3 + B1+禁忌):
+      优先级 1: 双赢 (两 FFN 交换后都不爆表), 选交换后两边 sum 都最接近 1 的 (sum-1 平方和最小)
+      优先级 2: 爆表 FFN 退出爆表, 选交换后 new_sum_F1 最小的
+      允许多次交换, 已交换 pair 当 cycle 不再选
+    """
+
+    def __init__(self, arranger, servers, FFN_workers, stats, buffer, stored_batches,
+                 alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
+        self.arranger = arranger
+        self.servers = servers
+        self.FFN_workers = FFN_workers
+        self.stats = stats
+        self.buffer = buffer
+        self.stored_batches = stored_batches
+        self.alpha_A, self.beta_A = alpha_A, beta_A
+        self.alpha_T, self.beta_T = alpha_T, beta_T
+        self.alpha_F, self.beta_F = alpha_F, beta_F
+
+        self.num_servers = len(servers)
+        self.num_FFN = len(FFN_workers)
+
+        # 普通 FFN (FCFS): server 必须走 status==4 → load_batch, 不能被 dynamic_matching 跳过
+        for server in self.servers:
+            server.dynamic_matching = False
+
+        # server_id -> FFN_id  (核心: AF 匹配)
+        self.AF_match: Dict[int, int] = {}
+        # FFN_id -> [server_id, ...]
+        self.AF_graph: Dict[int, List[int]] = defaultdict(list)
+
+        self.initially_full = initially_full
+        if self.initially_full:
+            self.do_initialize_filling()
+
+        # 初始分配: round-robin (按 w 降序排服务器, 依次喂给 sum_w 最小的 FFN)
+        self._initial_assignment()
+
+    def do_initialize_filling(self):
+        tot_batch_size = sum(b.batch_size for b in self.stored_batches.values())
+        if self.arranger.num_req_inque < tot_batch_size:
+            print(f"Basic number:{self.arranger.num_req_inque}, actually needed:{tot_batch_size}")
+            raise ValueError("Not enough requests to fill all batches")
+        for batch in self.stored_batches.values():
+            self.arranger.do_initial_filling(batch)
+
+    # ------------------------------------------------------------------
+    # 核心: 实时计算 w / sum_w / r
+    # ------------------------------------------------------------------
+    def _server_w(self, server) -> float:
+        """w = t_F / (t_A + t_F).  t_F, t_A 都按 server 内当前所有 batch 实时算."""
+        t_A = self.alpha_A * sum(b.length for b in server.batches.values()) + self.beta_A
+        t_F = sum(self.alpha_F * max(b.num_req, 1) + self.beta_F
+                  for b in server.batches.values())
+        denom = t_A + t_F
+        return t_F / denom if denom > 0 else 0
+
+    def _ffn_sum_w(self, ffn_id) -> float:
+        return sum(self._server_w(self.servers[sid]) for sid in self.AF_graph[ffn_id])
+
+    def _initial_assignment(self):
+        """初始按 w 降序的 best-fit-decreasing: 喂给当前 sum_w 最小的 FFN."""
+        ws = sorted(
+            [(self._server_w(s), s.server_id) for s in self.servers],
+            key=lambda x: -x[0]
+        )
+        ffn_sum = [0.0] * self.num_FFN
+        for w, sid in ws:
+            target = min(range(self.num_FFN), key=lambda f: ffn_sum[f])
+            self.AF_match[sid] = target
+            self.AF_graph[target].append(sid)
+            ffn_sum[target] += w
+            self.servers[sid].mapped_FFN_id = target
+        for ffn_id in range(self.num_FFN):
+            for sid in self.AF_graph[ffn_id]:
+                for batch in self.servers[sid].batches.values():
+                    batch.mapped_FFN_id = ffn_id
+
+    # ------------------------------------------------------------------
+    # 交换平衡 (每 cycle 调一次)
+    # ------------------------------------------------------------------
+    def _try_balance(self, current_time):
+        """每 cycle 一次. 多次交换直到没有更多有益交换."""
+        attempted_pairs = set()    # 禁忌: 已尝试过的 (sa, sb)
+        max_iter = 50              # 上限防极端
+        for _ in range(max_iter):
+            # 重新计算各 FFN 的 sum_w
+            ffn_sum = {f: self._ffn_sum_w(f) for f in range(self.num_FFN)}
+            overloaded = [f for f, s in ffn_sum.items() if s > 1.0]
+            if not overloaded:
+                break
+
+            best_swap = None
+            best_score = None   # 优先级 (tier, metric); tier=0 双赢, tier=1 退出爆表
+            best_tier = 2       # 越小越好
+
+            # 找需要换出的 server (爆表 FFN 里 r < w 的)
+            for f1 in overloaded:
+                sum_f1 = ffn_sum[f1]
+                # 在爆表 FFN, w_a 的 server: r_a = w_a / sum_f1 < w_a 当 sum_f1 > 1
+                # 即所有 server 都 r < w; 直接全部尝试交换
+                for sa in self.AF_graph[f1]:
+                    w_a = self._server_w(self.servers[sa])
+                    # 找对端 server sb 在其它 FFN 上, 该 FFN 不爆表
+                    for f2 in range(self.num_FFN):
+                        if f2 == f1:
+                            continue
+                        for sb in self.AF_graph[f2]:
+                            pair = tuple(sorted([sa, sb]))
+                            if pair in attempted_pairs:
+                                continue
+                            w_b = self._server_w(self.servers[sb])
+                            new_sum_f1 = sum_f1 - w_a + w_b
+                            new_sum_f2 = ffn_sum[f2] - w_b + w_a
+                            # 评估
+                            if new_sum_f1 <= 1.0 and new_sum_f2 <= 1.0:
+                                # 双赢
+                                tier = 0
+                                metric = (new_sum_f1 - 1.0)**2 + (new_sum_f2 - 1.0)**2
+                            elif new_sum_f1 <= 1.0:
+                                # f1 退出爆表 (但 f2 可能进入或仍未爆表)
+                                tier = 1
+                                metric = new_sum_f1
+                            else:
+                                # f1 仍爆表, 跳过
+                                continue
+                            score = (tier, metric)
+                            if best_score is None or score < best_score:
+                                best_swap = (sa, sb, f1, f2)
+                                best_score = score
+                                best_tier = tier
+
+            if best_swap is None:
+                break    # 没有更多有益交换
+
+            sa, sb, f1, f2 = best_swap
+            attempted_pairs.add(tuple(sorted([sa, sb])))
+            self._apply_swap(current_time, sa, sb, f1, f2)
+            # 打印
+            print(f"[balance cycle {current_time}] swap server {sa} (FFN {f1}) "
+                  f"<-> server {sb} (FFN {f2}), tier={best_tier}")
+
+    def _apply_swap(self, current_time, sa, sb, f1, f2):
+        """把 sa 的 FFN 改成 f2, sb 的 FFN 改成 f1. 更新 AF_match / AF_graph / batch.mapped_FFN_id."""
+        self.AF_match[sa] = f2
+        self.AF_match[sb] = f1
+        self.AF_graph[f1].remove(sa)
+        self.AF_graph[f1].append(sb)
+        self.AF_graph[f2].remove(sb)
+        self.AF_graph[f2].append(sa)
+        self.servers[sa].mapped_FFN_id = f2
+        self.servers[sb].mapped_FFN_id = f1
+        for batch in self.servers[sa].batches.values():
+            batch.mapped_FFN_id = f2
+        for batch in self.servers[sb].batches.values():
+            batch.mapped_FFN_id = f1
+        # batch 重新激活 (status==6 / 4 需要重做 A2F 走新 FFN)
+        self.servers[sa].reactivate_batches(current_time, self.alpha_A, self.beta_A,
+                                             self.alpha_T, self.beta_T)
+        self.servers[sb].reactivate_batches(current_time, self.alpha_A, self.beta_A,
+                                             self.alpha_T, self.beta_T)
+
+    # ------------------------------------------------------------------
+    # 主循环
+    # ------------------------------------------------------------------
+    def do_cycle_work(self, current_time):
+        for sid in range(self.num_servers):
+            server = self.servers[sid]
+            ffn_id = self.AF_match[sid]
+            FFN_worker = self.FFN_workers[ffn_id]
+            server.cycle_work(current_time, self.stats, FFN_worker, self.alpha_T, self.beta_T)
+            if server.compute_memory_usage() > server.memory_capacity + server.dynamic_space:
+                server.evict_requests(current_time)
+            evicted = server.evict_out_requests(current_time)
+            if evicted:
+                self.arranger.evict_all_requests(evicted)
+                self.stats.record_eviction(len(evicted))
+
+        self.arranger.arrange_requests(current_time)
+
+        # 每 cycle 平衡一次
+        self._try_balance(current_time)
+
+        for server in self.servers:
+            server.attention_work(current_time, self.alpha_A, self.beta_A)
+        for FFN_worker in self.FFN_workers:
+            FFN_worker.cycle_work(current_time, self.alpha_F, self.beta_F)
+
+
+# ===========================================================================
+# 方案 2: BalancedBatchFFNScheduler (FFN_type=7)
+# ===========================================================================
+class BalancedBatchFFNScheduler:
+    """按 batch 分配到 FFN (同 server 两 batch 可在不同 FFN).
+    每 batch 的 w = t_A(other_batch) / (2 * t_F(this_batch)).
+    含义: 另一 batch 的 attention 期间能容纳的 (this batch FFN) 处理量.
+
+    分组策略类似原 PipelineScheduler: 按 floor(w) 分桶, 高 w 的 batch 单挂少量 FFN,
+    低 w 的 batch 多个挂同一 FFN.
+    FFN 数量过少 → 优先让"挂的 batch 数少"的 FFN 超额;
+    FFN 数量过多 → 优先分担"挂的 batch 数多"的 FFN 的负担.
+    """
+
+    def __init__(self, arranger, servers, FFN_workers, stats, buffer, stored_batches,
+                 alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
+        self.arranger = arranger
+        self.servers = servers
+        self.FFN_workers = FFN_workers
+        self.stats = stats
+        self.buffer = buffer
+        self.stored_batches = stored_batches
+        self.alpha_A, self.beta_A = alpha_A, beta_A
+        self.alpha_T, self.beta_T = alpha_T, beta_T
+        self.alpha_F, self.beta_F = alpha_F, beta_F
+
+        self.num_servers = len(servers)
+        self.num_FFN = len(FFN_workers)
+        self.num_batches = len(stored_batches)
+
+        # 普通 FFN (FCFS): 保证 status==4 不被 dynamic_matching 跳过
+        for server in self.servers:
+            server.dynamic_matching = False
+
+        # batch_id -> FFN_id
+        self.BF_match: Dict[int, int] = {}
+        # FFN_id -> [batch_id, ...]
+        self.BF_graph: Dict[int, List[int]] = defaultdict(list)
+
+        # 单 FFN 至多能装的 batch 数 (与原 PipelineScheduler 一致)
+        self.max_AF_ratio = 5
+
+        self.initially_full = initially_full
+        if self.initially_full:
+            self.do_initialize_filling()
+
+        self._initial_assignment()
+
+    def do_initialize_filling(self):
+        tot_batch_size = sum(b.batch_size for b in self.stored_batches.values())
+        if self.arranger.num_req_inque < tot_batch_size:
+            print(f"Basic number:{self.arranger.num_req_inque}, actually needed:{tot_batch_size}")
+            raise ValueError("Not enough requests to fill all batches")
+        for batch in self.stored_batches.values():
+            self.arranger.do_initial_filling(batch)
+
+    # ------------------------------------------------------------------
+    # 核心: 实时算每个 batch 的 w
+    # ------------------------------------------------------------------
+    def _batch_t_A(self, batch) -> float:
+        """batch 自己的 attention 阶段预估用时."""
+        return self.alpha_A * batch.length + self.beta_A
+
+    def _batch_t_F(self, batch) -> float:
+        """batch 自己的 FFN 阶段预估用时."""
+        return self.alpha_F * max(batch.num_req, 1) + self.beta_F
+
+    def _batch_w_level(self, batch) -> float:
+        """w_level = t_F(self) / t_A(other_batch).  仅用于 FFN level / 初始分组容量参考."""
+        server = self.servers[batch.server_id]
+        t_A_other = 0.0
+        for b in server.batches.values():
+            if b.batch_id != batch.batch_id:
+                t_A_other += self.alpha_A * b.length + self.beta_A
+        if t_A_other <= 0:
+            return float('inf')
+        return self._batch_t_F(batch) / t_A_other
+
+    def _batch_w(self, batch) -> float:
+        """w = t_F(self) / (2 * t_A(other_batch)).  '应得份额', 与 r 量纲一致 (都是 0~1 比例).
+        r >= w 表示该 batch 在 FFN 内分到的资源 >= 它应得的份额 (不被阻塞).
+        """
+        server = self.servers[batch.server_id]
+        t_A_other = 0.0
+        for b in server.batches.values():
+            if b.batch_id != batch.batch_id:
+                t_A_other += self.alpha_A * b.length + self.beta_A
+        if t_A_other <= 0:
+            return float('inf')
+        return self._batch_t_F(batch) / (2.0 * t_A_other)
+
+    def _batch_weight(self, batch) -> float:
+        """weight = t_F(self) / (t_A(b1) + t_A(b2)).
+        用于计算 r (FFN 内资源占比) 和判断 FFN 爆表.
+        分母是同 server 两个 batch 的 attention 用时之和.
+        """
+        server = self.servers[batch.server_id]
+        t_A_sum = 0.0
+        for b in server.batches.values():
+            t_A_sum += self.alpha_A * b.length + self.beta_A
+        if t_A_sum <= 0:
+            return float('inf')
+        return self._batch_t_F(batch) / t_A_sum
+
+    def _ffn_sum_weight(self, ffn_id) -> float:
+        """FFN 上所有 batch 的 weight 之和. > 2 即爆表."""
+        return sum(self._batch_weight(self.stored_batches[bid])
+                   for bid in self.BF_graph[ffn_id])
+
+    def _ffn_overloaded(self, ffn_id) -> bool:
+        """爆表判据: weight 之和 > 2 (分母用两个 batch attention 之和, 容量上限是 2)."""
+        return self._ffn_sum_weight(ffn_id) > 2.0
+
+    def _batch_r(self, batch, ffn_id=None) -> float:
+        """r = weight(batch) / sum(weight of all batches in same FFN).
+        FFN 内分到的资源占比. r >= w 表示分到的资源够用.
+        """
+        if ffn_id is None:
+            ffn_id = self.BF_match[batch.batch_id]
+        sum_w = self._ffn_sum_weight(ffn_id)
+        if sum_w <= 0:
+            return 0.0
+        return self._batch_weight(batch) / sum_w
+
+    def _ffn_batch_count(self, ffn_id):
+        return len(self.BF_graph[ffn_id])
+
+    def _initial_assignment(self):
+        """初始分配: 按 weight 降序的 best-fit-decreasing.
+        目标: 每个 FFN 的 sum_weight 接近但不超过 2.
+        FFN 太少 → 优先让挂 batch 数少的 FFN 超额;
+        FFN 太多 → 从挂 batch 多的 FFN 拆 batch 到空 FFN.
+        """
+        batches_sorted = sorted(
+            self.stored_batches.values(),
+            key=lambda b: -self._batch_weight(b)
+        )
+
+        ffn_sum = [0.0] * self.num_FFN
+        ffn_count = [0] * self.num_FFN
+
+        for batch in batches_sorted:
+            wt = self._batch_weight(batch)
+            # best-fit: 找塞进去后 sum 仍 <= 2 且剩余空间最小的 FFN
+            candidates = [(2.0 - (ffn_sum[f] + wt), f)
+                          for f in range(self.num_FFN)
+                          if ffn_sum[f] + wt <= 2.0]
+            if candidates:
+                _, target = min(candidates)   # 剩余空间最小 = 最紧凑
+            else:
+                # 都会超额 → 优先挂 batch 数最少的 FFN (你的要求)
+                target = min(range(self.num_FFN), key=lambda f: ffn_count[f])
+            self.BF_match[batch.batch_id] = target
+            self.BF_graph[target].append(batch.batch_id)
+            ffn_sum[target] += wt
+            ffn_count[target] += 1
+
+        # FFN 太多 (有空 FFN): 从挂 batch 最多的 FFN 拆一个给空 FFN
+        empty_ffn = [f for f in range(self.num_FFN) if ffn_count[f] == 0]
+        while empty_ffn:
+            f_empty = empty_ffn.pop(0)
+            f_max = max(range(self.num_FFN), key=lambda f: ffn_count[f])
+            if ffn_count[f_max] <= 1:
+                break
+            cands = sorted(self.BF_graph[f_max],
+                           key=lambda bid: -self._batch_weight(self.stored_batches[bid]))
+            mv_bid = cands[0]
+            self.BF_graph[f_max].remove(mv_bid)
+            self.BF_graph[f_empty].append(mv_bid)
+            self.BF_match[mv_bid] = f_empty
+            ffn_count[f_max] -= 1
+            ffn_count[f_empty] += 1
+
+        for bid, fid in self.BF_match.items():
+            self.stored_batches[bid].mapped_FFN_id = fid
+
+    # ------------------------------------------------------------------
+    # 交换平衡 (类似方案 1)
+    # ------------------------------------------------------------------
+    def _try_balance(self, current_time):
+        """按 batch 交换以缓解 FFN 爆表.
+
+        发起前提: batch ba 在爆表 FFN f1 (sum_weight(f1) > 2) 且 r(ba) < w(ba) (被阻塞).
+        与 batch bb (在 f2) 交换, 接受当且仅当满足以下之一:
+          (a) 交换后 f1 和 f2 都不爆表 (sum_weight <= 2);
+          (b) 交换后 r(ba) >= w(ba) 且 r(bb) >= w(bb) 都成立, 且 ba 的新 FFN (f2) 不爆表.
+        交换后立刻重算受影响 FFN 内所有 batch 的 r (因为重算依赖 BF_graph, 自动反映).
+        被换走的 batch 因换到 r>=w 的位置, 本回合不再满足发起前提, 不会连续交换.
+        """
+        max_iter = 50
+        for _ in range(max_iter):
+            # 重新算各 FFN 的 sum_weight (爆表判据)
+            ffn_sum_weight = {f: self._ffn_sum_weight(f) for f in range(self.num_FFN)}
+            overloaded = [f for f, s in ffn_sum_weight.items() if s > 2.0]
+            if not overloaded:
+                break
+
+            applied = False
+            for f1 in overloaded:
+                sum_w_f1 = ffn_sum_weight[f1]
+                for ba in list(self.BF_graph[f1]):
+                    ba_batch = self.stored_batches[ba]
+                    r_ba = self._batch_r(ba_batch, f1)
+                    w_ba = self._batch_w(ba_batch)
+                    # 发起前提: r < w (被阻塞)
+                    if not (r_ba < w_ba):
+                        continue
+                    weight_a = self._batch_weight(ba_batch)
+
+                    # 找对端 bb
+                    found = None
+                    for f2 in range(self.num_FFN):
+                        if f2 == f1:
+                            continue
+                        sum_w_f2 = ffn_sum_weight[f2]
+                        for bb in list(self.BF_graph[f2]):
+                            bb_batch = self.stored_batches[bb]
+                            weight_b = self._batch_weight(bb_batch)
+
+                            new_sum_f1 = sum_w_f1 - weight_a + weight_b
+                            new_sum_f2 = sum_w_f2 - weight_b + weight_a
+
+                            # 条件 (a): 两边都不爆表
+                            cond_a = (new_sum_f1 <= 2.0 and new_sum_f2 <= 2.0)
+
+                            # 条件 (b): 交换后双方 r>=w 且 ba 新 FFN(f2) 不爆表
+                            cond_b = False
+                            if new_sum_f2 <= 2.0:
+                                # 交换后 ba 在 f2, bb 在 f1; 算交换后的 r
+                                # 交换后 f2 内 weight 和 = new_sum_f2, ba 的 weight 不变
+                                r_ba_new = weight_a / new_sum_f2 if new_sum_f2 > 0 else 0.0
+                                w_ba_new = self._batch_w(ba_batch)   # w 与 FFN 无关, 不变
+                                # 交换后 bb 在 f1, f1 内 weight 和 = new_sum_f1
+                                r_bb_new = weight_b / new_sum_f1 if new_sum_f1 > 0 else 0.0
+                                w_bb_new = self._batch_w(bb_batch)
+                                if r_ba_new >= w_ba_new and r_bb_new >= w_bb_new:
+                                    cond_b = True
+
+                            if cond_a or cond_b:
+                                found = (ba, bb, f1, f2)
+                                break
+                        if found:
+                            break
+
+                    if found:
+                        ba_, bb_, f1_, f2_ = found
+                        self._apply_batch_swap(current_time, ba_, bb_, f1_, f2_)
+                        print(f"[batch balance cycle {current_time}] swap batch {ba_} "
+                              f"(FFN {f1_}) <-> batch {bb_} (FFN {f2_})")
+                        applied = True
+                        break   # 重新计算 sum_weight, 进入下一轮 iter
+                if applied:
+                    break
+
+            if not applied:
+                break   # 本轮没有可行交换, 停止
+
+    def _apply_batch_swap(self, current_time, ba, bb, f1, f2):
+        self.BF_match[ba] = f2
+        self.BF_match[bb] = f1
+        self.BF_graph[f1].remove(ba)
+        self.BF_graph[f1].append(bb)
+        self.BF_graph[f2].remove(bb)
+        self.BF_graph[f2].append(ba)
+        self.stored_batches[ba].mapped_FFN_id = f2
+        self.stored_batches[bb].mapped_FFN_id = f1
+        # 涉及的 server 需要 reactivate (因为 batch 已切换 FFN)
+        sa = self.stored_batches[ba].server_id
+        sb = self.stored_batches[bb].server_id
+        affected = {sa, sb}
+        for sid in affected:
+            self.servers[sid].reactivate_batches(current_time, self.alpha_A, self.beta_A,
+                                                  self.alpha_T, self.beta_T)
+
+    # ------------------------------------------------------------------
+    # 主循环
+    # ------------------------------------------------------------------
+    def _server_cycle_for_batch_routing(self, current_time):
+        """方案 2 的特殊 server cycle: status==4 时按 batch.mapped_FFN_id 选 FFN."""
+        for server in self.servers:
+            for batch_id, batch in server.batches.items():
+                if batch.status == 3:
+                    if batch.is_due(current_time):
+                        batch.F2A_transmission_end(current_time)
+                        batch.do_new_round(current_time, self.stats)
+                elif batch.status == 4:
+                    if batch.is_due(current_time):
+                        batch.A2F_transmission_end(current_time)
+                        # 按 batch 自己的 mapped_FFN_id 派发
+                        ffn_id = batch.mapped_FFN_id
+                        if ffn_id < 0:
+                            ffn_id = self.BF_match.get(batch.batch_id, 0)
+                        self.FFN_workers[ffn_id].load_batch(current_time, batch)
+                elif batch.status == 1:
+                    if batch.attention_now:
+                        continue
+                    if batch.is_due(current_time):
+                        batch.A2F_transmission(current_time, self.alpha_T, self.beta_T)
+                        server.current_busy = False
+                elif batch.status == 2:
+                    if batch.is_due(current_time):
+                        batch.F2A_transmission(current_time, self.alpha_T, self.beta_T)
+                        server.first_finished_batch_id = server.last_finished_batch_id
+                        server.last_finished_batch_id = batch_id
+
+    def do_cycle_work(self, current_time):
+        self._server_cycle_for_batch_routing(current_time)
+
+        for server in self.servers:
+            if server.compute_memory_usage() > server.memory_capacity + server.dynamic_space:
+                server.evict_requests(current_time)
+            evicted = server.evict_out_requests(current_time)
+            if evicted:
+                self.arranger.evict_all_requests(evicted)
+                self.stats.record_eviction(len(evicted))
+
+        self.arranger.arrange_requests(current_time)
+
+        # 每 cycle 平衡一次
+        self._try_balance(current_time)
+
+        for server in self.servers:
+            server.attention_work(current_time, self.alpha_A, self.beta_A)
+        for FFN_worker in self.FFN_workers:
+            FFN_worker.cycle_work(current_time, self.alpha_F, self.beta_F)
+
+# ===========================================================================
+# FFN_type=8: UniformBalancedScheduler
+# 均匀分组 + 基于 AF 比 (t_A/t_F) 的动态 swap
+# ===========================================================================
+class UniformBalancedScheduler:
+    """均匀分配 server 到 FFN, 运行时按 AF 比 (t_A/t_F) 做动态平衡 swap.
+
+    AF 比定义: af_ratio(server) = t_A / t_F
+      t_A = alpha_A * sum(batch.length) + beta_A   (server 整体 attention 用时)
+      t_F = sum_batches(alpha_F * num_req + beta_F) (server 整体 FFN 用时)
+      af_ratio 越大 = attention 越主导 = 占 FFN 越少 = 越"友善" (适合挤在人多组).
+
+    初始分配: 按 af_ratio 降序, af_ratio 大的优先塞到当前人数最多的组.
+
+    运行时 swap (每 cycle, 反复直到不满足):
+      取人最多组 F_big 里 af_ratio 最小的 server a;
+      取人最少组 F_small 里 af_ratio 最大的 server b;
+      若 af_ratio(b) - af_ratio(a) >= 1, 交换 a/b 的 FFN 归属; 否则停.
+      O(n) 检查 (无需遍历所有 pair).
+    """
+
+    def __init__(self, arranger, servers, FFN_workers, stats, buffer, stored_batches,
+                 alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True):
+        self.arranger = arranger
+        self.servers = servers
+        self.FFN_workers = FFN_workers
+        self.stats = stats
+        self.buffer = buffer
+        self.stored_batches = stored_batches
+        self.alpha_A, self.beta_A = alpha_A, beta_A
+        self.alpha_T, self.beta_T = alpha_T, beta_T
+        self.alpha_F, self.beta_F = alpha_F, beta_F
+
+        self.num_servers = len(servers)
+        self.num_FFN = len(FFN_workers)
+
+        # 用普通 FFN (FCFS), server 必须走 status==4 → A2F_end → load_batch 路径,
+        # 不能被 dynamic_matching 跳过 (否则 batch 永远卡在 status==6)
+        for server in self.servers:
+            server.dynamic_matching = False
+
+        self.AF_match: Dict[int, int] = {}            # server_id -> FFN_id
+        self.AF_graph: Dict[int, List[int]] = defaultdict(list)  # FFN_id -> [server_id]
+
+        self.initially_full = initially_full
+        if self.initially_full:
+            self.do_initialize_filling()
+
+        self._initial_assignment()
+
+    def do_initialize_filling(self):
+        tot_batch_size = sum(b.batch_size for b in self.stored_batches.values())
+        if self.arranger.num_req_inque < tot_batch_size:
+            print(f"Basic number:{self.arranger.num_req_inque}, actually needed:{tot_batch_size}")
+            raise ValueError("Not enough requests to fill all batches")
+        for batch in self.stored_batches.values():
+            self.arranger.do_initial_filling(batch)
+
+    # ------------------------------------------------------------------
+    # AF 比 (t_A / t_F)
+    # ------------------------------------------------------------------
+    def _server_af_ratio(self, server) -> float:
+        t_A = self.alpha_A * sum(b.length for b in server.batches.values()) + self.beta_A
+        t_F = sum(self.alpha_F * max(b.num_req, 1) + self.beta_F
+                  for b in server.batches.values())
+        if t_F <= 0:
+            return float('inf')
+        return t_A / t_F
+
+    # ------------------------------------------------------------------
+    # 初始分配: af_ratio 大的优先进人数最多的组
+    # ------------------------------------------------------------------
+    def _initial_assignment(self):
+        """均匀分配, 且 af_ratio 大的 server 进"目标人数更多"的组.
+
+        - base = num_servers // num_FFN; 前 (num_servers % num_FFN) 个 FFN 目标人数 base+1, 其余 base.
+        - 按 af_ratio 降序排 server, 优先填"目标人数多 (base+1)"的 FFN, 填满再填 base 的.
+        - 每个 FFN 填到各自目标人数就不再接收, 保证人数差 <= 1 (均匀).
+        """
+        base = self.num_servers // self.num_FFN
+        extra = self.num_servers % self.num_FFN     # 前 extra 个 FFN 多 1 人
+        # 目标人数: FFN 0..extra-1 是 base+1, 其余是 base
+        target_capacity = [base + 1 if f < extra else base for f in range(self.num_FFN)]
+        # FFN 填充顺序: 目标人数多的优先 (这样 af 大的 server 落到人多组)
+        ffn_order = sorted(range(self.num_FFN), key=lambda f: -target_capacity[f])
+
+        ranked = sorted(self.servers, key=lambda s: -self._server_af_ratio(s))
+        idx = 0
+        for f in ffn_order:
+            cap = target_capacity[f]
+            for _ in range(cap):
+                if idx >= len(ranked):
+                    break
+                server = ranked[idx]
+                idx += 1
+                self.AF_match[server.server_id] = f
+                self.AF_graph[f].append(server.server_id)
+                server.mapped_FFN_id = f
+                for batch in server.batches.values():
+                    batch.mapped_FFN_id = f
+
+    # ------------------------------------------------------------------
+    # 运行时 swap
+    # ------------------------------------------------------------------
+    def _try_balance(self, current_time):
+        max_iter = 100
+        for _ in range(max_iter):
+            # 找人最多 / 人最少的非空组
+            non_empty = [f for f in range(self.num_FFN) if self.AF_graph[f]]
+            if len(non_empty) < 2:
+                break
+            f_big = max(non_empty, key=lambda f: len(self.AF_graph[f]))
+            f_small = min(non_empty, key=lambda f: len(self.AF_graph[f]))
+            if f_big == f_small or len(self.AF_graph[f_big]) - len(self.AF_graph[f_small]) <= 0:
+                break
+
+            # f_big 里 af_ratio 最小的 server a
+            a = min(self.AF_graph[f_big],
+                    key=lambda sid: self._server_af_ratio(self.servers[sid]))
+            # f_small 里 af_ratio 最大的 server b
+            b = max(self.AF_graph[f_small],
+                    key=lambda sid: self._server_af_ratio(self.servers[sid]))
+
+            af_a = self._server_af_ratio(self.servers[a])
+            af_b = self._server_af_ratio(self.servers[b])
+
+            if af_b - af_a >= 1.0:
+                self._apply_swap(current_time, a, b, f_big, f_small)
+                print(f"[uniform balance cycle {current_time}] swap server {a} "
+                      f"(FFN {f_big}, af={af_a:.2f}) <-> server {b} "
+                      f"(FFN {f_small}, af={af_b:.2f})")
+            else:
+                break   # 最极端的一对都不满足, 停
+
+    def _apply_swap(self, current_time, sa, sb, f1, f2):
+        self.AF_match[sa] = f2
+        self.AF_match[sb] = f1
+        self.AF_graph[f1].remove(sa)
+        self.AF_graph[f1].append(sb)
+        self.AF_graph[f2].remove(sb)
+        self.AF_graph[f2].append(sa)
+        self.servers[sa].mapped_FFN_id = f2
+        self.servers[sb].mapped_FFN_id = f1
+        for batch in self.servers[sa].batches.values():
+            batch.mapped_FFN_id = f2
+        for batch in self.servers[sb].batches.values():
+            batch.mapped_FFN_id = f1
+        self.servers[sa].reactivate_batches(current_time, self.alpha_A, self.beta_A,
+                                            self.alpha_T, self.beta_T)
+        self.servers[sb].reactivate_batches(current_time, self.alpha_A, self.beta_A,
+                                            self.alpha_T, self.beta_T)
+
+    # ------------------------------------------------------------------
+    # 主循环
+    # ------------------------------------------------------------------
+    def do_cycle_work(self, current_time):
+        for sid in range(self.num_servers):
+            server = self.servers[sid]
+            FFN_server = self.FFN_workers[self.AF_match[sid]]
+            server.cycle_work(current_time, self.stats, FFN_server, self.alpha_T, self.beta_T)
+            if server.compute_memory_usage() > server.memory_capacity + server.dynamic_space:
+                server.evict_requests(current_time)
+            evicted = server.evict_out_requests(current_time)
+            if evicted:
+                self.arranger.evict_all_requests(evicted)
+                self.stats.record_eviction(len(evicted))
+
+        self.arranger.arrange_requests(current_time)
+
+        self._try_balance(current_time)
+
+        for server in self.servers:
+            server.attention_work(current_time, self.alpha_A, self.beta_A)
+        for FFN_worker in self.FFN_workers:
+            FFN_worker.cycle_work(current_time, self.alpha_F, self.beta_F)

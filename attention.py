@@ -10,7 +10,7 @@ class Server:
         self.num_batches = num_batches
         self.batches = batches
         self.batch_size = batch_size
-
+        #print("length: {}, batch size:{}".format(len(batches), num_batches))
         assert len(batches) == num_batches
         self.server_id = server_id
         self.unit_FFN_time = unit_FFN_time
@@ -161,10 +161,14 @@ class Server:
             tot_len += batch.length
         return alpha_A*tot_len + beta_A
 
-    def compute_total_unit_cost(self,alpha_A, beta_A):
+    def compute_total_unit_cost(self,alpha_A, beta_A, alpha_F, beta_F):
         total_cost = self.compute_total_cost(alpha_A, beta_A)
-        total_unit = total_cost / (self.unit_FFN_time*self.num_batches)
-        return total_unit
+        ffn_cost = 0
+        for batch in self.batches.values():
+            ffn_cost += alpha_F * max(batch.num_req, 1) + beta_F
+        if ffn_cost <= 0:
+            return 0
+        return total_cost / ffn_cost
 
     def map_to_FFN(self, FFN_id, FFN_level):
         self.mapped_FFN_id = FFN_id
@@ -172,9 +176,9 @@ class Server:
         # for batch in self.batches.values():
         #     batch.map_to_FFN(FFN_id, FFN_level)
 
-    def update_FFN_level(self, alpha_A, beta_A):
+    def update_FFN_level(self, alpha_A, beta_A, alpha_F, beta_F):
         #print("Unit FFN cost: {}, Attention cost: {}".format(self.unit_FFN_time, self.compute_total_cost(alpha_A, beta_A)))
-        self.weight = self.compute_total_unit_cost(alpha_A, beta_A)
+        self.weight = self.compute_total_unit_cost(alpha_A, beta_A, alpha_F, beta_F)
 
     def reactivate_batches(self, current_time, alpha_A, beta_A, alpha_T, beta_T):
         for batch in self.batches.values():

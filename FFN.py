@@ -33,6 +33,9 @@ class FFN:
             self.current_ending = batch.FFN_processing(current_time, alpha_F, beta_F, current_ending=self.current_ending)
             self.current_busy = True
 
+    def print_debug_information(self):
+        print("FFN ID: {}, Buffer size: {}".format(self.worker_id, len(self.buffer) ))
+
 class BatchNode:
     def __init__(self, batch_id, batch: Batch):
         self.batch_id = batch_id

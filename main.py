@@ -8,7 +8,7 @@ from stats import StatsCollector
 from request import Request
 from FFN import FFN, dynamic_FFN, MoEFFN
 from batch import Batch
-from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler, MoEScheduler, MoEPriorityScheduler, PriorityExpertQueue 
+from scheduler import BasicScheduler, DynamicScheduler, PipelineScheduler, MoEScheduler, MoEPriorityScheduler, PriorityExpertQueue, BalancedAttnFFNScheduler, BalancedBatchFFNScheduler, UniformBalancedScheduler
 from collections import deque
 from arranger import GlobalArranger, GreedyArranger, MultitypeArranger
 
@@ -510,6 +510,7 @@ def main():
             is_MoE= args.is_MoE,
             num_experts = args.num_experts
         ) 
+    
     else:
         raise NotImplementedError("Not Implemented Yet in generator.py")
 
@@ -525,6 +526,8 @@ def main():
             elif args.FFN_type == 3:
                 FFN_worker = dynamic_FFN(FFN_id, should_serve_num_batches= 0, allow_exchange=args.allow_exchange)
             elif args.FFN_type == 4:
+                FFN_worker = FFN(FFN_id)
+            else:
                 FFN_worker = FFN(FFN_id)
             FFN_workers.append(FFN_worker)
 
@@ -551,7 +554,7 @@ def main():
     # Use single FFN worker for current experiment
         FFN_server = FFN_workers[0]
         # TODO: Main Loop
-        while finished_requests < args.total_request:
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
             newly_generated_reqs = generator.step(global_time)
             for req in newly_generated_reqs:
                 buffer.append(req)
@@ -701,7 +704,7 @@ def main():
 
         scheduler = BasicScheduler(arranger, servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F)
         scheduler.match_AF()
-        while finished_requests < args.total_request:
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
             time_print = False
             if global_time % 1000 == 0 and time_print:
                 print("Global Time: ", global_time)
@@ -729,7 +732,7 @@ def main():
         # 一开始要填满所有Batch， 至少需要生成这些request才能满足要求
         scheduler = PipelineScheduler(arranger, servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
         # PipelineScheduler的初始匹配在构造函数中完成
-        while finished_requests < args.total_request:
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
             newly_generated_reqs = generator.step(global_time)
             for req in newly_generated_reqs:
                 arranger.inqueue_request(req)
@@ -756,7 +759,7 @@ def main():
 
         scheduler = DynamicScheduler(arranger, servers, FFN_workers, stats, buffer, stored_batches, alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
         
-        while finished_requests < args.total_request:
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
             newly_generated_reqs = generator.step(global_time)
             for req in newly_generated_reqs:
                 arranger.inqueue_request(req)
@@ -772,6 +775,84 @@ def main():
                 print("Finished requests: ", finished_requests)
                 for batch in stored_batches.values():
                     batch.print_debug_information()
+    elif args.FFN_type == 6:
+        # 方案 1: Balanced AF (按 attention 节点平衡, FFN 内部 FCFS, 无流水线)
+        cyc_t0 = time.perf_counter()
+        least_num_to_fill = args.num_batch * args.batch_size * args.num_server
+        if args.basic_num < least_num_to_fill:
+            raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
+        initial_reqs = generator.do_initial_generation()
+        for req in initial_reqs:
+            arranger.inqueue_request(req)
+ 
+        scheduler = BalancedAttnFFNScheduler(
+            arranger, servers, FFN_workers, stats, buffer, stored_batches,
+            alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
+ 
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                arranger.inqueue_request(req)
+            scheduler.do_cycle_work(global_time)
+            cycle_times.append(time.perf_counter() - cyc_t0)
+            finished_requests = stats.finished_request
+            global_time += 1
+ 
+            if global_time % 10000 == 0:
+                print("Global Time: ", global_time)
+                print("Finished requests: ", finished_requests)
+    elif args.FFN_type == 8:
+        # 均匀分配 + AF比 (t_A/t_F) 动态 swap, FFN 内部 FCFS
+        cyc_t0 = time.perf_counter()
+        least_num_to_fill = args.num_batch * args.batch_size * args.num_server
+        if args.basic_num < least_num_to_fill:
+            raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
+        initial_reqs = generator.do_initial_generation()
+        for req in initial_reqs:
+            arranger.inqueue_request(req)
+ 
+        scheduler = UniformBalancedScheduler(
+            arranger, servers, FFN_workers, stats, buffer, stored_batches,
+            alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
+ 
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                arranger.inqueue_request(req)
+            scheduler.do_cycle_work(global_time)
+            cycle_times.append(time.perf_counter() - cyc_t0)
+            finished_requests = stats.finished_request
+            global_time += 1
+ 
+            if global_time % 10000 == 0:
+                print("Global Time: ", global_time)
+                print("Finished requests: ", finished_requests)
+    elif args.FFN_type == 7:
+        # 方案 2: Balanced Batch-FFN (按 batch 平衡, FFN 内部 FCFS, 无流水线)
+        cyc_t0 = time.perf_counter()
+        least_num_to_fill = args.num_batch * args.batch_size * args.num_server
+        if args.basic_num < least_num_to_fill:
+            raise ValueError("Basic number of requests should be larger than the total number of requests in the batch")
+        initial_reqs = generator.do_initial_generation()
+        for req in initial_reqs:
+            arranger.inqueue_request(req)
+ 
+        scheduler = BalancedBatchFFNScheduler(
+            arranger, servers, FFN_workers, stats, buffer, stored_batches,
+            alpha_A, beta_A, alpha_T, beta_T, alpha_F, beta_F, initially_full=True)
+ 
+        while finished_requests < args.total_request and (args.max_cycles <= 0 or global_time < args.max_cycles):
+            newly_generated_reqs = generator.step(global_time)
+            for req in newly_generated_reqs:
+                arranger.inqueue_request(req)
+            scheduler.do_cycle_work(global_time)
+            cycle_times.append(time.perf_counter() - cyc_t0)
+            finished_requests = stats.finished_request
+            global_time += 1
+ 
+            if global_time % 10000 == 0:
+                print("Global Time: ", global_time)
+                print("Finished requests: ", finished_requests)
 
     if cycle_times:
         total_wall = time.perf_counter() - total_wall_start
